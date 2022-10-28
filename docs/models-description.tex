@@ -1,0 +1,201 @@
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+\usepackage[hidelinks]{hyperref}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{bbm}
+\usepackage{minted}
+
+\def\bayesDCA{\href{https://giulianonetto.github.io/bayesdca/}{\textcolor{blue}{\{\mintinline{R}{bayesDCA}\}}} }
+
+\begin{document}
+
+
+
+\assignment{Giuliano Netto Flores Cruz}{cruz.gnf@gmail.com}{Description of models in bayesDCA}
+
+\section*{Introduction}
+
+In Decision Curve Analysis, we are typically interested in estimating the net benefit of adopting a given clinical decision strategy \cite{Vickers_2006}.
+A decision strategy may be simply treating all patients under suspicion of a given condition, because the condition is
+so deadly that any costs of intervention are outweighed -- e.g., treating aggressive cancer with surgery.
+That is the ``Treat all" strategy, which alludes to intervening in all patients regardless of the nature of the intervention. Conversely, intervention may be risky and the underlying condition, 
+not so much -- e.g., surgery for non-aggressive cancer.
+In this case, a reasonable decision strategy is not to treat any patient -- the ``Treat none" strategy. A better decision strategy is, perhaps, 
+to decide based on a predictive model which estimates a patient's likelihood of having aggressive disease. If the patient's likelihood
+is above a decision threshold $t$, then we intervene. The same idea serves for binary tests, even though the test result is independent 
+of our decision threshold $t$. We must then be able to estimate NB for these four types of decision strategies: treat all, treat none, model-based 
+decisions, and decisions based on binary tests. 
+
+The \bayesDCA R package helps with the above task while properly propagating uncertainty in the NB parameters. 
+We can ultimately infer what's the best decision strategy, which strategies are useful at all, make pairwise comparisons between strategies, and 
+estimate the expected cost of uncertainty imposed by the available data.
+Here we briefly describe the models behind the Bayesian Decision Curve Analysis implemented in the 
+\bayesDCA R package. We start with binary outcomes, which is the 
+application \bayesDCA was primarily designed for. We then describe its extension to survival (time-to-event)
+outcomes.
+
+\section{Bayesian Decision Curve Analysis for binary outcomes}
+
+Suppose we have a validation dataset with a binary outcome. For convenience, we refer to the outcome as disease status or diagnosis (diseased v.s. non-diseased), 
+but the model generalizes for any binary endpoint (e.g., short-term death status or even disease subtype). For each patient, we also have 
+the outcome prediction for models $m = 1,2,\dots, M$. This prediction can be a probability prediction (i.e., as in risk prediction models) or 
+a binary prediction (i.e., as in binary tests). For a range of decision thresholds $t \in (0, 1)$, the Net Benefit for model $m$ at threshold $t$
+is:
+\begin{align}
+    \textrm{NB}_{m, t} = \textrm{Se}_{m, t}\cdot p - (1 - \textrm{Sp}_{m, t})\cdot(1-p)\cdot \textrm{odds}(t) \label{nb-binary}
+\end{align}
+where $\textrm{odds}(t) = t/(1-t)$, $\textrm{Se}$ represents sensitivity, $\textrm{Sp}$ represents specificity, and $p$ represents the disease
+prevalence or outcome proportion. The equation (\ref*{nb-binary})
+has three unknown parameters, namely $\textrm{Se}_{m, t}$, $\textrm{Sp}_{m, t}$, and $p$. The first first two are model- and threshold-specific, while 
+the $p$ is the same for all models and thresholds. To estimate these from cross-sectional data, the \bayesDCA R package implements the following model:
+\begin{align}
+    \textrm{Diseased} &\sim \textrm{Binomial}(\textrm{N} = n, p) \nonumber\\
+    \textrm{True Positives}_{m, t} &\sim \textrm{Binomial}(\textrm{Diseased} = d, \textrm{Se}_{m, t}) \label{model-binary}\\
+    \textrm{True Negatives}_{m, t} &\sim  \textrm{Binomial}(\textrm{Non-diseased} = n-d, \textrm{Sp}_{m, t}) \nonumber \\
+    \nonumber\\
+    p, \textrm{Se}_{m, t}, \textrm{Sp}_{m, t} &\sim \textrm{Beta}(\alpha_0, \beta_0) \label{prior-binary}
+\end{align}
+Together, model (\ref*{model-binary}) and prior (\ref*{prior-binary}) represent a series of beta-binomial models with closed-form solutions given by
+\begin{align}
+    p \ | \ \textrm{Diseased} = d, \textrm{N} = n &\sim \textrm{Beta}(\alpha_0 + d, n - d + \beta_0) \nonumber\\[5pt] 
+    \textrm{Se}_{m, t} \ | \ \textrm{True Positives}_{m, t} = \textrm{tp}_{m, t}, \textrm{Diseased} = d  &\sim \textrm{Beta}(\alpha_0 + \textrm{tp}_{m, t}, d - \textrm{tp}_{m, t} + \beta_0) \label{post-binary}\\[5pt]
+    \textrm{Sp}_{m, t} \ | \ \textrm{True Negatives}_{m, t} = \textrm{tn}_{m, t}, \textrm{Non-diseased} = n - d  &\sim \textrm{Beta}(\alpha_0 + \textrm{tn}_{m, t}, n - d - \textrm{tn}_{m, t} + \beta_0)\nonumber 
+\end{align}
+By default, \bayesDCA fixes the shared prior parameters to be $\alpha_0=\beta_0=1$, though the user may provide different values --
+which may be model- and threshold-specific. For binary tests, where sensitivity and specificity are fixed for all thresholds, it may be beneficial
+to elicitate more informative priors based on previous diagnostic test accuracy studies, for instance. However, prior elicitation in the case of risk prediction models
+may be substantially more challenging due to the threshold-varying parameters. Since here the unknown quantities are relatively easy to estimate, using vague priors
+is unlikely to be an issue.
+
+We can jointly sample from the posterior distributions in (\ref*{post-binary}) to compute $\textrm{NB}_{m, t}$ as defined in equation (\ref*{nb-binary}). 
+The \bayesDCA R package employs \textcolor{blue}{\href{https://mc-stan.org/}{Stan}} for this task, primarily because of \textcolor{blue}{\href{https://mc-stan.org/}{Stan}}'s 
+rich model and sampling diagnostics. For instance, if the user specifies some really bad priors, \textcolor{blue}{\href{https://mc-stan.org/}{Stan}} may issue multiple warnings
+about low effective (posterior) sample size and other convergence issues \cite{Carpenter2017}.
+
+\subsection{Using external prevalence information for case-control data}
+
+The model (\ref*{model-binary}) has a single parameter for the outcome proportion or disease prevalence, $p$. If we perform Decision Curve Analysis
+in a case-control study, where the observed outcome proportion is determined by investigators, the observed data will not be suitable to estimate $p$.
+Instead, we can use external prevalence information and estimate $p$. Its posterior distribution is then given by
+\begin{align*}
+    p \ | \ \textrm{Diseased} = d_{\textrm{ext.}}, \textrm{N} = n_{\textrm{ext.}} &\sim \textrm{Beta}(\alpha_0 + d_{\textrm{ext.}}, n_{\textrm{ext.}} - d_{\textrm{ext.}} + \beta_0)
+\end{align*}
+where $d_{\textrm{ext.}}$ and $n_{\textrm{ext.}}$ come from an external prevalence study (or any other source of prevalence information). This differs from common frequentist approaches that simply
+plug-in a point estimate for $p$. Here, we propagate uncertainty around $p$ regardless of the source of prevalence information. The 
+\bayesDCA R package allows the user to provide $d_{\textrm{ext.}}$ and $n_{\textrm{ext.}}$, while still using the observed data to 
+estimate the sensitivity and specificity terms in equation (\ref*{nb-binary}).
+
+\section{Bayesian Decision Curve Analysis for survival outcomes}
+
+Decision Curve Analysis has been previously extended to survival (time-to-events) outcomes \cite{Vickers_2008}. Because of
+right-censoring, we cannot condition on "having the event" or "not having the event". We then use Bayes theorem to rewrite the
+Net Benefit as
+\begin{align}
+    \textrm{NB}^{\tau}_{m, t} = \left[1 - S\left(\tau \ | \ \widehat{r}_{m, \tau} > t \right) \right] \cdot \P\left[\hat{r}_{m, \tau} > t\right]  - S\left(\tau \ | \ \widehat{r}_{m, \tau} > t \right)  \cdot \P\left[\hat{r}_{m, \tau} > t\right] \cdot \textrm{odds}(t) \label{nb-survival}
+\end{align}
+where $\widehat{r}_{m, \tau}$ is the predicted risk of event from model $m$ at time horizon $\tau$ (e.g., the predicted one-year mortality according to model $m$),
+$S\left(\tau \ | \ \widehat{r}_{m, \tau} > t \right)$ is the survival at time $\tau$ among patients with a positive prediction (i.e., for which $\widehat{r}_{m, \tau} > t$),
+and $\P\left[\hat{r}_{m, \tau} > t\right]$ is the probability of a positive prediction. 
+
+There are two unknown quantities in (\ref*{nb-survival}). The first one, $\P\left[\hat{r}_{m, \tau} > t\right]$, is estimated using another beta-binomial model:
+\begin{align*}
+    \textrm{Positives}_{m, t}^{\tau} \sim \textrm{Binomial}(N = n, \gamma_{m, \tau}^{(t)})
+\end{align*}
+where $\gamma_{m, \tau}^{(t)} = \P\left[\hat{r}_{m, \tau} > t\right]$. Notice that the outcome in this case is not censored -- we have predictions
+for all $N=n$ patients from each model $m$. 
+
+The second unknown in (\ref*{nb-survival}) is $S\left(\tau \ | \ \widehat{r}_{m, \tau} > t \right)$,
+the survival among patients with a positive prediction (``positive patients"). 
+In a frequentist framework, we could simply plug-in 
+the Kaplan-Meier point estimates as previously suggested \cite{Vickers_2008}. However, in order to properly
+ propagate uncertainty throughout equation (\ref*{nb-survival}),
+we need a Bayesian model for $S\left(\tau \ | \ \widehat{r}_{m, \tau} > t \right)$.
+In the following section, we explain such a model. We employ the Poisson trick for 
+a piecewise-constant hazards model, in a similar approach to the one implemented in the
+ \textcolor{blue}{\href{https://doi.org/10.18637/jss.v092.i09}{spBayesSurv}} R package \cite{Zhou_2020}.
+The main difference is that, here, we don't have any covariates.
+
+\subsection{Bayesian estimation of survival among positive patients}
+
+To estimate $S\left(\tau \ | \ \widehat{r}_{m, \tau} > t \right)$, first consider partitioning time into $K$ intervals:
+\begin{align}
+    0 = \tau_0 < \tau_1 < \tau_2 < \cdots < \tau_{K-1} < \tau_K = \infty \label{time-partition}
+\end{align}
+Define $\lambda_k$ as the constant hazard in the $k^{th}$ interval given by $I_k = [\tau_{k-1}, \tau_{k})$, for $k=1, 2, \dots, K$.
+Usually $\lambda_k$ is attached to a linear predictor term $\exp\left(x_i^T\beta\right)$ with characteristics $x_i$ from the $i^{th}$
+patient (under a proportional hazards assumption). We don't need that term here since we are only interested in the baseline hazards.
+ Then, the hazard for 
+patient $i$ at time $t$ is modeled as:
+\begin{align*}
+    \lambda_i(t) = \lambda_k \ \ \ \ \textrm{for} \ \  t \in [\tau_{k-1}, \tau_k)
+\end{align*}
+Since (\ref{time-partition}) is a time partition the above can be further simplified to 
+\begin{align}
+    \lambda_{ik} = \lambda_k \label{pch}
+\end{align}
+Now, suppose we observe the exposure time $t_i$ and death indicator $d_i$ for patients $i=1,2,\dots, n$ (or similarly for any event other than death). The expression
+(\ref*{pch}) only refers to patient- and interval-level information, so we may define corresponding pseudo-observations for each
+individual at each time interval:
+\begin{align}
+    d_{ik} &= \mathbbm{1}\left\{t_i \in [\tau_{k-1}, \tau_k) \cap d_i = 1 \right\} = \begin{cases}
+        1&\textrm{if patient $i$ died in the $k^{th}$ interval $I_k$}\\
+        0&\textrm{if patient $i$ died in some other interval or was censored}
+    \end{cases} \nonumber\\
+    \label{pseudo-obs}\\
+    t_{ik} &= \begin{cases}
+        \tau_k - \tau_{k-1} &\textrm{if $t_i>\tau_k$}\\
+        t_i - \tau_{k-1} &\textrm{if $t_i \in I_k$}\\
+        0&\textrm{if $t_i < \tau_{k-1}$}
+    \end{cases} = \textrm{exposure time of patient $i$ within $k^{th}$ interval}
+    \nonumber
+\end{align}
+Notice that, if a patient $i$ died at time $t \in I_k$, then $d_{ik}=1$ and $d_{im}=0$ for all $m\neq k$. If a patient 
+was censored, then $d_{ik}=0$ for all $k=1,2,\dots, K$. The Poisson trick comes from recognizing that we can treat 
+the interval-specific death indicators $d_{ik}$ as if
+\begin{align}
+    d_{ik} \sim \textrm{Poisson}(t_{ik}\cdot \lambda_{ik}) \label{poisson-ik}
+\end{align}
+Since we are assuming independence across individuals $i=1,2,\dots, n$, we further simplify (\ref*{poisson-ik}) to:
+\begin{align}
+    d_k \sim \textrm{Poisson}(t_{k}\cdot \lambda_{k}) \label{poisson-k}
+\end{align}
+where
+\begin{align*}
+    t_k\cdot \lambda_k &= \sum_{i=1}^n t_{ik} \cdot \lambda_{ik} = \sum_{i=1}^n t_{ik} \cdot \lambda_{k} = \lambda_{k} \sum_{i=1}^n t_{ik} \\
+    d_k &= \sum_{i=1}^n d_{ik} = \textrm{total deaths within $k^{th}$ interval} \\
+    t_k &= \sum_{i=1}^n t_{ik} = \textrm{total exposure time within $k^{th}$ interval} 
+\end{align*}
+Placing a conjugate Gamma prior\footnote{$\alpha_k$ and $\beta_k$ are the shape and rate parameters, respectively.} $\Gamma(\alpha_k, \beta_k)$ for the parameters $\lambda_k$, we have the posterior distributions in closed form:
+\begin{align}
+    \lambda_k \ |\ d_k,t_k \ \sim \ \Gamma\left(\alpha_k + d_k, \beta_k + t_k\right) \label{post-hazards}
+\end{align}
+With draws from the posterior distributions for the hazard terms, we can then compute the cumulative hazard and survival probability at any time $t$ by:
+\begin{align}
+    S(t) &= \exp(-\Lambda(t)) \nonumber\\
+    \Lambda(t) &= \sum_{k=1}^{K}\lambda_k \cdot T_k(t) \label{surv}\\
+    T_k(t) &= \begin{cases}
+        \tau_k - \tau_{k-1} &\textrm{if $t>\tau_k$}\\
+        t - \tau_{k-1} &\textrm{if $t \in I_k$}\\
+        0&\textrm{if $t < \tau_{k-1}$}\nonumber
+    \end{cases}
+\end{align}
+where $T_k(t)$ is analogous to the interval-specific exposure time as defined in (\ref*{pseudo-obs}). 
+
+Finally, to estimate the survival among positive patients, we fit the model defined in (\ref*{poisson-k} ---\ref*{surv}) using
+data for patients whose model predictions $\widehat{r}_{m,\tau}$ fall above the decision threshold $t$.
+\subsubsection{Choosing cutpoints and prior parameters}
+
+%This is where your bibliography is generated. Make sure that your .bib file is actually called library.bib
+\bibliography{library}
+
+%This defines the bibliographies style. Search online for a list of available styles.
+\bibliographystyle{ieeetr}
+
+\end{document}
