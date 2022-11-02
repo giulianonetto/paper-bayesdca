@@ -38,13 +38,6 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# Latex temporary files
-docs/*.aux
-docs/*.log
-docs/*.toc
-docs/*.bbl
-docs/*.blg
-docs/*.fls
-docs/*.fdb_latexmk
-docs/*.out
-docs/*.synctex.gz
+# docker stuff
+.local
+.config
