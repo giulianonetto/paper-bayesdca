@@ -15,10 +15,10 @@ theme_set(
     theme_bw(base_size = 14)
 )
 
-# Comparison with other packages
-thresholds <- seq(0, 1, by = 0.005)
+# Comparison with other packages ----
+thresholds <- seq(0, 1, by = 0.02)
 
-## RMDA data
+## RMDA data ----
 
 rmda_data <- rmda_data %>%
     mutate(
@@ -41,11 +41,11 @@ ggsave(
     width = 8, height = 4.5, dpi = 600
 )
 
-# GUSTO-I trial
+## GUSTO-I trial ----
 
 load(str_path("data/gusto.rda"))
 
-## Small sample size
+### Small sample size ----
 
 set.seed(123)
 test_ix <- sample(nrow(gusto), 500)
@@ -82,7 +82,7 @@ ggsave(
 )
 
 
-## Reasonable sample size
+### Reasonable sample size ----
 
 set.seed(123)
 test_ix <- sample(nrow(gusto), 1500)
@@ -162,5 +162,55 @@ ggsave(
     width = 10, height = 6, dpi = 600
 )
 
-# TODO: fix compare_dca to allow multiple models_or_tests (it's capping at two)
-# WRITE
+# Simulation section ----
+seed <- 10112022
+# n <- 1e7
+n <- 1e4
+d <- 2
+
+## simulate predictors, true p|x, and y|p
+set.seed(seed)
+x <- cbind(1, matrix(rexp(n * d, 1), ncol = d))
+true_beta <- c(-2.1, -log(1.5), log(1.5))
+true_p <- plogis(as.vector(x %*% true_beta))
+set.seed(seed)
+y <- rbinom(n, 1, true_p)
+## calculate p_hat|x
+w <- 3
+beta_hat <- c(-3, true_beta[2] * w, true_beta[3] * w)
+p_hat <- plogis(as.vector(x %*% beta_hat))
+## calculate true (approximate) NB|y,p_hat
+true_nb <- map_df(thresholds, ~ {
+    tpr <- mean(
+        p_hat > .x & y == 1
+    )
+    fpr <- mean(
+        p_hat > .x & y == 0
+    )
+    tibble(
+        .thr = .x,
+        nb = tpr - fpr * (.x / (1 - .x))
+    )
+})
+
+sample_size <- ceiling(100 / mean(true_p))
+set.seed(seed)
+sample_ix <- sample(1:n, sample_size)
+df_sample <- data.frame(
+    outcomes = y[sample_ix],
+    model_predictions = p_hat[sample_ix]
+)
+
+df_sample %>%
+    plot_bdca_vs_rmda(
+        outcomes = "outcomes",
+        predictor = "model_predictions",
+        thresholds = thresholds,
+        bootstraps = 2e3
+    ) +
+    geom_line(
+        data = true_nb,
+        aes(x = .thr, y = nb, group = 1),
+        color = "red", inherit.aes = FALSE
+    ) +
+    theme(legend.position = c(.7, .7))
