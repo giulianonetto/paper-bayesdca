@@ -42,13 +42,13 @@ expit <- function(x) {
 #' @param bootstraps Number (int) of bootstrap samples for rmda
 #' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
 #' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
-#' @param cores Number of cores for `bayesDCA::dca`
-#' @thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
+#' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
+#' @param thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
 #' @importFrom magrittr %>%
 compare_bdca_vs_rmda <- function(dataset, outcomes,
                                  predictor, thresholds,
                                  treat_all_rmda = FALSE, bootstraps = 500,
-                                 refresh = 0, cores = 4, .quiet = FALSE) {
+                                 refresh = 0, .quiet = FALSE, cores = 1) {
   df <- data.frame(
     outcomes = dataset[[outcomes]],
     predictor = dataset[[predictor]]
@@ -139,14 +139,14 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
 #' @param bootstraps Number`data.frame` with outcomes and predictor of outcome (int) of bootstrap samples for rmda
 #' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
 #' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
-#' @param cores Number of cores for `bayesDCA::dca`
+#' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
 #' @thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
 #' @importFrom magrittr %>%
 plot_bdca_vs_rmda <- function(comparison = NULL,
                               dataset = NULL, outcomes = NULL,
                               predictor = NULL, thresholds = NULL,
                               treat_all_rmda = FALSE, bootstraps = 500,
-                              refresh = 0, cores = 4, .quiet = FALSE) {
+                              refresh = 0, cores = 1, .quiet = FALSE) {
   import::from(magrittr, `%>%`)
 
   if (is.null(comparison)) {
@@ -154,7 +154,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
       dataset = dataset, outcomes = outcomes,
       predictor = predictor, thresholds = thresholds,
       treat_all_rmda = FALSE, bootstraps = 500,
-      refresh = 0, cores = 4, .quiet = FALSE
+      refresh = 0, cores = cores, .quiet = FALSE
     )
   }
   # get plot helper objects
@@ -267,12 +267,31 @@ compute_nb <- function(y, pred, thr) {
 #' @param .seed RNG seed.
 #' @param raw_data Whether to return the raw data. Defaults to FALSE.
 #' @param .plot Whether to plot simulation. Defaults to FALSE.
+#' @param result_path If given, the simulation result will be written as a .tsv file to the specified path.
+#' @param .label If given, it will be appended to result as a "simulation_label" column.
+#' @param .setting_label If given, it will be appended to result as a "setting_label" column.
+#' @param overwrite If TRUE, any existing file in `result_path` will be overwritten by a new simualtion.
+#' @param cores Number of cores for bayesDCA. Defaults to 1.
+#' @param .verbose If TRUE more info is printed.
 simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
-                         raw_data = FALSE, .plot = FALSE) {
+                         raw_data = FALSE, .plot = FALSE,
+                         result_path = NULL, .label = NULL,
+                         .setting_label = NULL,
+                         overwrite = FALSE, cores = 1, .verbose = TRUE) {
+  if (!is.null(result_path)) {
+    if (file.exists(result_path) & isFALSE(overwrite)) {
+      msg <- cli::col_red(paste0(
+        "Skipping simulation, cannot overwrite: ", result_path
+      ))
+      message(msg)
+      return(read_tsv(result_path, show_col_types = FALSE))
+    }
+  }
+
   thresholds <- validate_thresholds(thresholds = thresholds)
   msg <- cli::col_blue(
     paste0(
-      "Simulating DCA data with .seed = ", .seed
+      "Simulating DCA with .seed = ", .seed
     )
   )
   message(msg)
@@ -285,13 +304,16 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
   y <- rbinom(n_pop, 1, true_p)
   ## calculate predictions p_hat|x
   p_hat <- plogis(as.vector(x %*% beta_hat))
-  msg <- cli::col_blue(
-    paste0(
-      "True prevalence: ", round(mean(true_p), 3),
-      "\nPrevalence implied by model: ", round(mean(true_p), 3)
+  if (isTRUE(.verbose)) {
+    msg <- cli::col_blue(
+      paste0(
+        "True prevalence: ", round(mean(true_p), 3),
+        "\nPrevalence implied by model: ", round(mean(true_p), 3)
+      )
     )
-  )
-  message(msg)
+    message(msg)
+  }
+
   ## calculate true (approximate) NB|y,p_hat
   true_nb <- map_df(thresholds, ~ {
     compute_nb(y = y, pred = p_hat, thr = .x)
@@ -310,7 +332,8 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
     predictor = "model_predictions",
     thresholds = thresholds,
     bootstraps = 2e3,
-    .quiet = TRUE
+    .quiet = TRUE,
+    cores = cores
   )
 
   result <- left_join(
@@ -324,8 +347,24 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
   ) %>%
     dplyr::mutate(
       abs_error = abs(estimate - .true_nb),
-      truth_within_interval = .true_nb >= .lower & .true_nb <= .upper
+      truth_within_interval = .true_nb >= .lower & .true_nb <= .upper,
+      .simulation_seed = .seed
     )
+
+  if (!is.null(.setting_label)) {
+    result$setting_label <- .setting_label
+  }
+  if (!is.null(.label)) {
+    result$simulation_label <- .label
+  }
+
+
+  if (!is.null(result_path)) {
+    write_tsv(
+      result,
+      result_path,
+    )
+  }
 
   output <- list(
     result = result,
@@ -369,4 +408,32 @@ summarise_dca_simulation <- function(dca_simulation, simulation_id = NULL) {
     class(dca_simulation) == "DCASimulation"
   )
   # TODO
+}
+
+#' Get simulation settings (Results' subsection 2)
+get_simulation_settings <- function() {
+  simulation_settings <- list(
+    # AUC 0.65, prev 0.05 vs 0.06
+    sim1 = list(
+      true_beta = c(-3.1, -log(1.5), log(1.5)),
+      beta_hat = c(-3.9, -log(1.5) * 3, log(1.5) * 3)
+    ),
+    # AUC 0.65, prev 0.3 vs 0.3
+    sim2 = list(
+      true_beta = c(-0.9, -log(1.55), log(1.55)),
+      beta_hat = c(-1.2, -log(1.55) * 3, log(1.55) * 3)
+    ),
+    # AUC 0.85, prev  0.05 vs 0.06
+    sim3 = list(
+      true_beta = c(-3.755, -log(2.95), log(2.95)),
+      beta_hat = c(-7.3, -log(2.95) * 3, log(2.95) * 3)
+    ),
+    # AUC 0.85, prev  0.3 vs 0.32
+    sim4 = list(
+      true_beta = c(-1.3, -log(4.5), log(4.5)),
+      beta_hat = c(-2.25, -log(4.5) * 3, log(4.5) * 3)
+    )
+  )
+
+  return(simulation_settings)
 }

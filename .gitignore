@@ -45,6 +45,9 @@ vignettes/*.pdf
 # targets stuff
 _targets/objects
 
+# simulation tmp files
+output/simulation_study/tmp/
+
 # tmp data
 data/tmp/
 .config

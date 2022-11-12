@@ -25,15 +25,14 @@ ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
 outdir <- str_path("output-tmp/simulation_study")
 thresholds <- pmin(thresholds, get_max_threshold())
 
-## simulate predictors, true p|x, and y|p
-simulation <- simulate_dca_data(
-    n_pop = 1e6,
-    thresholds = thresholds,
+
+simulation <- simulate_dca(
+    n_pop = 1e4,
+    thresholds = seq(0, 1, .1),
     true_beta = c(-2.1, -log(1.5), log(1.5)),
     beta_hat = c(-3, -log(1.5) * 3, log(1.5) * 3),
     events = 100,
-    .seed = .seed,
-    .plot = FALSE
+    .seed = .seed, .plot = TRUE
 )
 
 

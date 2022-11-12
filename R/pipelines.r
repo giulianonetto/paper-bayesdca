@@ -1,4 +1,4 @@
-run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr_interval = 0.005, .seed = 123) {
+run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thresholds, .seed = 123) {
     # Comparison with other packages ----
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
     outdir <- str_path(outdir)
@@ -29,13 +29,13 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
         type = "response"
     )
 
-    plot_gusto <- test_data %>%
-        plot_bdca_vs_rmda(
-            outcomes = "day30",
-            predictor = "phat1",
-            thresholds = thresholds,
-            bootstraps = 2e3
-        ) +
+    plot_gusto <- plot_bdca_vs_rmda(
+        dataset = test_data,
+        outcomes = "day30",
+        predictor = "phat1",
+        thresholds = thresholds,
+        bootstraps = 2e3
+    ) +
         theme(legend.position = c(.7, .7)) +
         labs(title = NULL)
 
@@ -66,13 +66,13 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
         type = "response"
     )
 
-    plot_gusto2 <- test_data_large %>%
-        plot_bdca_vs_rmda(
-            outcomes = "day30",
-            predictor = "phat1",
-            thresholds = thresholds,
-            bootstraps = 2e3
-        ) +
+    plot_gusto2 <- plot_bdca_vs_rmda(
+        dataset = test_data_large,
+        outcomes = "day30",
+        predictor = "phat1",
+        thresholds = thresholds,
+        bootstraps = 2e3
+    ) +
         theme(legend.position = c(.7, .7))
 
     ggsave(
@@ -137,49 +137,57 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
     return(output)
 }
 
-run_simulation_study <- function(thresholds, n_pop, .seed) {
+run_simulation_study <- function(n_sim, thresholds, n_pop,
+                                 output_dir, overwrite, .seed) {
     # Simulation section ----
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
     outdir <- str_path("output/simulation_study")
     thresholds <- validate_thresholds(thresholds = thresholds)
 
-    simulation_settings <- list(
-        # AUC 0.65, prev 0.05 vs 0.057
-        sim1 = list(
-            true_beta = c(-3.1, -log(1.5), log(1.5)),
-            beta_hat = c(-3.9, -log(1.5) * 3, log(1.5) * 3)
-        ),
-        # AUC 0.65, prev 0.3
-        sim2 = list(
-            true_beta = c(-0.9, -log(1.55), log(1.55)),
-            beta_hat = c(-1.2, -log(1.55) * 3, log(1.55) * 3)
-        ),
-        # AUC 0.85, prev  0.05
-        sim3 = list(
-            true_beta = c(-3.755, -log(2.95), log(2.95)),
-            beta_hat = c(-7.3, -log(2.95) * 3, log(2.95) * 3)
-        ),
-        # AUC 0.85, prev  0.3
-        sim4 = list(
-            true_beta = c(-1.3, -log(4.5), log(4.5)),
-            beta_hat = c(-2.25, -log(4.5) * 3, log(4.5) * 3)
+    simulation_settings <- get_simulation_settings()
+    n_settings <- length(simulation_settings)
+    set.seed(.seed)
+    settings_seeds <- sample(1:1000, n_settings)
+    simulation_results <- vector("list", n_settings * n_sim)
+    results_ix <- 1
+    for (i in 1:n_settings) {
+        .setting <- simulation_settings[[i]]
+        .setting_label <- names(simulation_settings)[i]
+        .setting_seed <- settings_seeds[i]
+        msg <- cli::col_br_magenta(
+            paste0("Running simulation setting ", i, " with seed ", .setting_seed)
         )
-    )
-    true_beta <- simulation_settings$sim1$true_beta
-    beta_hat <- simulation_settings$sim1$beta_hat
-    d <- length(true_beta) - 1
-    x <- cbind(1, matrix(rexp(n_pop * d, 1), ncol = d))
-    true_p <- plogis(as.vector(x %*% true_beta))
-    set.seed(122331)
-    y <- rbinom(n_pop, 1, true_p)
-    p_hat <- plogis(as.vector(x %*% beta_hat))
-    simulation <- simulate_dca(
-        n_pop = n_pop,
-        thresholds = seq(0, 1, .1),
-        true_beta = c(-2.1, -log(1.5), log(1.5)),
-        beta_hat = c(-3, -log(1.5) * 3, log(1.5) * 3),
-        events = 100,
-        .seed = .seed
-    )
+        message(msg)
+        set.seed(.setting_seed)
+        sim_seeds <- sample(1:2e4, n_sim)
+        for (j in 1:n_sim) {
+            .run_seed <- sim_seeds[j]
+            msg <- cli::col_br_green(paste0(
+                "Run ", j, " with seed ", .run_seed, "\t(setting ", i, ")"
+            ))
+            message(msg)
+            .label <- paste0(
+                .setting_label, "_", .setting_seed,
+                "-run", j, "_", .run_seed
+            )
+            simulation_results[[results_ix]] <- simulate_dca(
+                n_pop = n_pop,
+                thresholds = thresholds,
+                true_beta = .setting$true_beta,
+                beta_hat = .setting$beta_hat,
+                events = 100,
+                .seed = .run_seed,
+                .setting_label = .setting_label,
+                .label = .label,
+                result_path = str_path("{output_dir}/{.label}.tsv"),
+                overwrite = overwrite,
+                .verbose = FALSE
+            )
+            results_ix <- results_ix + 1
+        }
+    }
+
+    output <- dplyr::bind_rows(simulation_results)
+
     return(output)
 }
