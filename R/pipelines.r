@@ -137,72 +137,49 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
     return(output)
 }
 
-run_simulation_study <- function(thresholds, .seed) {
+run_simulation_study <- function(thresholds, n_pop, .seed) {
     # Simulation section ----
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
     outdir <- str_path("output/simulation_study")
     thresholds <- validate_thresholds(thresholds = thresholds)
-    n <- 2e6
-    d <- 2
 
-    ## simulate predictors, true p|x, and y|p
-    set.seed(.seed)
-    x <- cbind(1, matrix(rexp(n * d, 1), ncol = d))
-    true_beta <- c(-2.1, -log(1.5), log(1.5))
+    simulation_settings <- list(
+        # AUC 0.65, prev 0.05 vs 0.057
+        sim1 = list(
+            true_beta = c(-3.1, -log(1.5), log(1.5)),
+            beta_hat = c(-3.9, -log(1.5) * 3, log(1.5) * 3)
+        ),
+        # AUC 0.65, prev 0.3
+        sim2 = list(
+            true_beta = c(-0.9, -log(1.55), log(1.55)),
+            beta_hat = c(-1.2, -log(1.55) * 3, log(1.55) * 3)
+        ),
+        # AUC 0.85, prev  0.05 TODO
+        sim3 = list(
+            true_beta = c(-1.3, -log(4.5), log(4.5)),
+            beta_hat = c(-2.25, -log(4.5) * 3, log(4.5) * 3)
+        ),
+        # AUC 0.85, prev  0.3
+        sim4 = list(
+            true_beta = c(-1.3, -log(4.5), log(4.5)),
+            beta_hat = c(-2.25, -log(4.5) * 3, log(4.5) * 3)
+        )
+    )
+    true_beta <- simulation_settings$sim1$true_beta
+    beta_hat <- simulation_settings$sim1$beta_hat
+    d <- length(true_beta) - 1
+    x <- cbind(1, matrix(rexp(n_pop * d, 1), ncol = d))
     true_p <- plogis(as.vector(x %*% true_beta))
-    set.seed(.seed)
-    y <- rbinom(n, 1, true_p)
-    ## calculate p_hat|x
-    w <- 3
-    beta_hat <- c(-3, true_beta[2] * w, true_beta[3] * w)
+    set.seed(122331)
+    y <- rbinom(n_pop, 1, true_p)
     p_hat <- plogis(as.vector(x %*% beta_hat))
-    ## calculate true (approximate) NB|y,p_hat
-    true_nb <- map_df(thresholds, ~ {
-        tpr <- mean(
-            p_hat > .x & y == 1
-        )
-        fpr <- mean(
-            p_hat > .x & y == 0
-        )
-        tibble(
-            .thr = .x,
-            nb = tpr - fpr * (.x / (1 - .x))
-        )
-    })
-
-    sample_size <- ceiling(100 / mean(true_p))
-    set.seed(.seed)
-    sample_ix <- sample(1:n, sample_size)
-    df_sample <- data.frame(
-        outcomes = y[sample_ix],
-        model_predictions = p_hat[sample_ix]
-    )
-
-    .plot <- df_sample %>%
-        plot_bdca_vs_rmda(
-            outcomes = "outcomes",
-            predictor = "model_predictions",
-            thresholds = thresholds,
-            bootstraps = 2e3
-        ) +
-        geom_line(
-            data = true_nb,
-            aes(x = .thr, y = nb, group = 1),
-            color = "red", inherit.aes = FALSE
-        ) +
-        theme(legend.position = c(.7, .7)) +
-        ggplot2::scale_y_continuous(expand = c(.275, 0))
-
-    ggsave(
-        str_path("{outdir}/simulation.png"),
-        .plot,
-        width = 7, height = 4, dpi = 600
-    )
-    output <- list(
-        .plot = .plot,
-        true_nb = true_nb,
-        df_sample = df_sample,
-        thresholds = thresholds
+    simulation <- simulate_dca(
+        n_pop = n_pop,
+        thresholds = seq(0, 1, .1),
+        true_beta = c(-2.1, -log(1.5), log(1.5)),
+        beta_hat = c(-3, -log(1.5) * 3, log(1.5) * 3),
+        events = 100,
+        .seed = .seed
     )
     return(output)
 }
