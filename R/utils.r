@@ -1,3 +1,18 @@
+import::from(rmda, rmda_data = dcaData)
+import::from(dcurves, dcurves_dca = dca)
+if (!require(bayesDCA)) {
+  devtools::install_github("giulianonetto/bayesdca")
+  require(bayesDCA)
+}
+
+#' Get maximum threshold allowed
+validate_thresholds <- function(thresholds) {
+  pmax(
+    pmin(thresholds, 0.99),
+    0
+  )
+}
+
 #' Get path from `here::here` using `stringr::str_glue`
 #'
 #' @param .path A path potentially with glue-style
@@ -19,12 +34,9 @@ expit <- function(x) {
   exp(x) / (1 + exp(x))
 }
 
-#' Plot bayesDCA vs rmda
+#' Compare DCA from `bayesDCa` and `rmda` packages
 #'
-#' Plots DCA from `bayesDCa` and `rmda` packages
-#' for visual comparison
-#'
-#' @param dataset
+#' @param dataset `data.frame` with outcomes and predictor of outcome
 #' @param outcomes outcome variable (character string with column name)
 #' @param predictor predicted probabilities (character string with column name)
 #' @param bootstraps Number (int) of bootstrap samples for rmda
@@ -33,27 +45,30 @@ expit <- function(x) {
 #' @param cores Number of cores for `bayesDCA::dca`
 #' @thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
 #' @importFrom magrittr %>%
-plot_bdca_vs_rmda <- function(dataset, outcomes, predictor, thresholds,
-                              treat_all_rmda = FALSE, bootstraps = 500,
-                              refresh = 0, cores = 4) {
-  import::from(magrittr, `%>%`)
+compare_bdca_vs_rmda <- function(dataset, outcomes,
+                                 predictor, thresholds,
+                                 treat_all_rmda = FALSE, bootstraps = 500,
+                                 refresh = 0, cores = 4, .quiet = FALSE) {
   df <- data.frame(
     outcomes = dataset[[outcomes]],
     predictor = dataset[[predictor]]
   )
-  thresholds <- pmin(thresholds, 0.999) %>%
-    pmax(0.001)
+  thresholds <- validate_thresholds(thresholds = thresholds)
   # Estimate decision curves
-  msg <- cli::col_blue("Estimating DCA with bayesDCA")
-  message(msg)
+  if (isFALSE(.quiet)) {
+    msg <- cli::col_blue("Estimating DCA with bayesDCA")
+    message(msg)
+  }
   bdca_fit <- bayesDCA::dca(
     df,
     thresholds = thresholds,
     refresh = refresh,
     cores = cores
   )
-  msg <- cli::col_blue("Estimating DCA with rmda")
-  message(msg)
+  if (isFALSE(.quiet)) {
+    msg <- cli::col_blue("Estimating DCA with rmda")
+    message(msg)
+  }
   rmda_fit <- rmda::decision_curve(
     outcomes ~ predictor,
     data = df,
@@ -63,8 +78,10 @@ plot_bdca_vs_rmda <- function(dataset, outcomes, predictor, thresholds,
   )
 
   # get results into standardized data.frames
-  msg <- cli::col_blue("Plotting results")
-  message(msg)
+  if (isFALSE(.quiet)) {
+    msg <- cli::col_blue("Plotting results")
+    message(msg)
+  }
   res_bdca <- dplyr::bind_rows(
     bdca_fit$summary$net_benefit %>%
       dplyr::select(
@@ -105,9 +122,43 @@ plot_bdca_vs_rmda <- function(dataset, outcomes, predictor, thresholds,
     )
 
   res_all <- bind_rows(res_bdca, res_rmda)
+  return(res_all)
+}
 
+#' Plot bayesDCA vs rmda comparison
+#'
+#' Plots DCA from `bayesDCa` and `rmda` packages
+#' for visual comparison
+#'
+#' @param comparison output from `compare_bdca_vs_rmda`.
+#' May also leave as `NULL` and pass arguments for the
+#' `compare_bdca_vs_rmda` function which is run internally.
+#' @param dataset `data.frame` with outcomes and predictor of outcome
+#' @param outcomes outcome variable (character string with column name)
+#' @param predictor predicted probabilities (character string with column name)
+#' @param bootstraps Number`data.frame` with outcomes and predictor of outcome (int) of bootstrap samples for rmda
+#' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
+#' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
+#' @param cores Number of cores for `bayesDCA::dca`
+#' @thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
+#' @importFrom magrittr %>%
+plot_bdca_vs_rmda <- function(comparison = NULL,
+                              dataset = NULL, outcomes = NULL,
+                              predictor = NULL, thresholds = NULL,
+                              treat_all_rmda = FALSE, bootstraps = 500,
+                              refresh = 0, cores = 4, .quiet = FALSE) {
+  import::from(magrittr, `%>%`)
+
+  if (is.null(comparison)) {
+    comparison <- compare_bdca_vs_rmda(
+      dataset = dataset, outcomes = outcomes,
+      predictor = predictor, thresholds = thresholds,
+      treat_all_rmda = FALSE, bootstraps = 500,
+      refresh = 0, cores = 4, .quiet = FALSE
+    )
+  }
   # get plot helper objects
-  max_estimate <- max(res_all$estimate)
+  max_estimate <- max(comparison$estimate)
   .ymin <- ifelse(
     max_estimate > 0.02,
     -0.02,
@@ -130,13 +181,13 @@ plot_bdca_vs_rmda <- function(dataset, outcomes, predictor, thresholds,
     .labels[3] <- "Treat all (Bayesian)"
     .labels[4] <- "Treat all (Frequentist)"
   } else {
-    res_all <- res_all %>%
+    comparison <- comparison %>%
       dplyr::filter(
         !(strategy == "Treat all" & .type == "Frequentist")
       )
   }
 
-  .plot <- res_all %>%
+  .plot <- comparison %>%
     ggplot2::ggplot(
       ggplot2::aes(
         x = threshold, y = estimate,
@@ -187,4 +238,135 @@ get_subsamples <- function(n_event, n_nonevent, df, y) {
       sample(which(df[[y]] == 0), n_nonevent)
     ),
   ]
+}
+
+#' Compute net benefit for given threshold
+#' @param y
+#' @param pred
+#' @param thr
+compute_nb <- function(y, pred, thr) {
+  tpr <- mean(
+    pred > thr & y == 1
+  )
+  fpr <- mean(
+    pred > thr & y == 0
+  )
+  tibble::tibble(
+    .thr = thr,
+    nb = tpr - fpr * (thr / (1 - thr))
+  )
+}
+
+#' Simulate DCA (Results' subsection 02)
+#' @param n_pop Population size
+#' @param thresholds DCA decision thresholds
+#' @param true_beta Vector of true beta coefficients that
+#' define the probability of the outcome
+#' @param beta_hat Vector of (fake) model coefficients
+#' @param events Expected number of events in DCA sample
+#' @param .seed RNG seed.
+#' @param raw_data Whether to return the raw data. Defaults to FALSE.
+#' @param .plot Whether to plot simulation. Defaults to FALSE.
+simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
+                         raw_data = FALSE, .plot = FALSE) {
+  thresholds <- validate_thresholds(thresholds = thresholds)
+  msg <- cli::col_blue(
+    paste0(
+      "Simulating DCA data with .seed = ", .seed
+    )
+  )
+  message(msg)
+  set.seed(.seed)
+  d <- length(true_beta) - 1
+  ## simulate predictors x, even prob true_p|x, and outcome y|true_p
+  x <- cbind(1, matrix(rexp(n_pop * d, 1), ncol = d))
+  true_p <- plogis(as.vector(x %*% true_beta))
+  set.seed(.seed)
+  y <- rbinom(n_pop, 1, true_p)
+  ## calculate predictions p_hat|x
+  p_hat <- plogis(as.vector(x %*% beta_hat))
+  msg <- cli::col_blue(
+    paste0(
+      "True prevalence: ", round(mean(true_p), 3),
+      "\nPrevalence implied by model: ", round(mean(true_p), 3)
+    )
+  )
+  message(msg)
+  ## calculate true (approximate) NB|y,p_hat
+  true_nb <- map_df(thresholds, ~ {
+    compute_nb(y = y, pred = p_hat, thr = .x)
+  })
+
+  sample_size <- ceiling(events / mean(true_p))
+  set.seed(.seed)
+  sample_ix <- sample(1:n_pop, sample_size)
+  df_sample <- data.frame(
+    outcomes = y[sample_ix],
+    model_predictions = p_hat[sample_ix]
+  )
+  dca_comparison <- compare_bdca_vs_rmda(
+    dataset = df_sample,
+    outcomes = "outcomes",
+    predictor = "model_predictions",
+    thresholds = thresholds,
+    bootstraps = 2e3,
+    .quiet = TRUE
+  )
+
+  result <- left_join(
+    dca_comparison,
+    true_nb %>%
+      dplyr::select(
+        threshold := .thr,
+        .true_nb := nb
+      ),
+    by = "threshold"
+  ) %>%
+    dplyr::mutate(
+      abs_error = abs(estimate - .true_nb),
+      truth_within_interval = .true_nb >= .lower & .true_nb <= .upper
+    )
+
+  output <- list(
+    result = result,
+    true_beta = true_beta,
+    beta_hat = beta_hat,
+    thresholds = thresholds,
+    n_pop = n_pop,
+    expected_events = events
+  )
+
+  if (isTRUE(.plot)) {
+    sim_plot <- plot_bdca_vs_rmda(
+      comparison = dca_comparison
+    ) +
+      geom_line(
+        data = true_nb,
+        aes(x = .thr, y = nb, group = 1),
+        color = "red", inherit.aes = FALSE
+      ) +
+      theme(legend.position = c(.7, .7)) +
+      ggplot2::scale_y_continuous(expand = c(.275, 0))
+    output[["plot"]] <- sim_plot
+  }
+
+  if (isTRUE(raw_data)) {
+    output[["true_nb"]] <- true_nb
+    output[["df_sample"]] <- df_sample
+    output[["true_p"]] <- true_p
+    output[["y"]] <- y
+    output[["x"]] <- x
+    output[["p_hat"]] <- p_hat
+  }
+
+  return(structure(output, class = "DCASimulation"))
+}
+
+#' Summarise simulated DCA results (Results' subsection 02)
+#' @param dca_simulation Object of class DCASimulation
+summarise_dca_simulation <- function(dca_simulation, simulation_id = NULL) {
+  stopifnot(
+    class(dca_simulation) == "DCASimulation"
+  )
+  # TODO
 }

@@ -40,6 +40,10 @@ vignettes/*.pdf
 
 # docker stuff
 .local
+.config
+
+# targets stuff
+_targets/objects
 
 # tmp data
 data/tmp/

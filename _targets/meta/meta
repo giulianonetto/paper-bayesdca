@@ -1,0 +1,10 @@
+name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
+.seed|object|294fdc6634917212|||||||||||||||
+expit|function|d42f2e267dbac39a|||||||||||||||
+get_subsamples|function|8ba7988cfc208c95|||||||||||||||
+plot_bdca_vs_rmda|function|a1092bbf6d827837|||||||||||||||
+results_01_subsection|stem|3d6cc6d34cc41c15|79fa0b7483d38127|386b8b8d379fa3f6|-1984634709||t19307.9062490527s|25c08199524d0e2a|141928171|rds|local|vector|||53.423||
+results_02_subsection|stem|a65f32241576e1f3|619b18e13d17e2bb|81651cddb23305d2|130078453||t19307.9103369897s|b79ce45c118f3742|59010524|rds|local|vector|||21.765||
+run_bayes_vs_frequentist|function|3eb7e46e44aa691e|||||||||||||||
+run_simulation_study|function|8e85550535a1798b|||||||||||||||
+str_path|function|ceb8215a18d486a2|||||||||||||||
