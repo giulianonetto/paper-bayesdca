@@ -154,10 +154,10 @@ run_simulation_study <- function(thresholds, n_pop, .seed) {
             true_beta = c(-0.9, -log(1.55), log(1.55)),
             beta_hat = c(-1.2, -log(1.55) * 3, log(1.55) * 3)
         ),
-        # AUC 0.85, prev  0.05 TODO
+        # AUC 0.85, prev  0.05
         sim3 = list(
-            true_beta = c(-1.3, -log(4.5), log(4.5)),
-            beta_hat = c(-2.25, -log(4.5) * 3, log(4.5) * 3)
+            true_beta = c(-3.755, -log(2.95), log(2.95)),
+            beta_hat = c(-7.3, -log(2.95) * 3, log(2.95) * 3)
         ),
         # AUC 0.85, prev  0.3
         sim4 = list(
