@@ -138,11 +138,14 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
 }
 
 run_simulation_study <- function(n_sim, thresholds, n_pop,
-                                 output_dir, overwrite, .seed) {
+                                 outdir, overwrite, .seed) {
     # Simulation section ----
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
-    outdir <- str_path("output/simulation_study")
     thresholds <- validate_thresholds(thresholds = thresholds)
+    dir.create(
+        outdir,
+        showWarnings = FALSE,
+        recursive = TRUE
+    )
 
     simulation_settings <- get_simulation_settings()
     n_settings <- length(simulation_settings)
@@ -170,7 +173,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
                 .setting_label, "_", .setting_seed,
                 "-run", j, "_", .run_seed
             )
-            simulation_results[[results_ix]] <- simulate_dca(
+            .simulation_output <- simulate_dca(
                 n_pop = n_pop,
                 thresholds = thresholds,
                 true_beta = .setting$true_beta,
@@ -179,15 +182,142 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
                 .seed = .run_seed,
                 .setting_label = .setting_label,
                 .label = .label,
-                result_path = str_path("{output_dir}/{.label}.tsv"),
+                result_path = str_path("{outdir}/tmp/{.label}.tsv"),
                 overwrite = overwrite,
                 .verbose = FALSE
             )
+            simulation_results[[results_ix]] <- .simulation_output$result
             results_ix <- results_ix + 1
         }
     }
 
-    output <- dplyr::bind_rows(simulation_results)
+    simulation_results <- as.data.frame(dplyr::bind_rows(simulation_results))
 
-    return(output)
+    return(simulation_results)
+}
+
+#' Plot simulated DCA results (Results' subsection 02)
+#' @param simulation_results Results from `run_simulation_study`.
+#' @param outdir Path for output directory
+#' @param global_simulation_seed Global seed used for simulation (from `_targets.R` file)
+#' @import tidyverse
+plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed) {
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
+    .colors <- RColorBrewer::brewer.pal(3, "Dark2")
+    names(.colors) <- c(
+        "True NB", "Frequentist", "Bayesian"
+    )
+    .colors[".true_nb"] <- .colors[1]
+
+    setting_labels_pretty <- purrr::map_chr(
+        get_simulation_settings(),
+        ~ paste0(
+            "AUC ", .x$auc, ", prevalence ", round(.x$prev * 100), "%"
+        )
+    )
+
+    df <- simulation_results %>%
+        dplyr::filter(strategy == "Model-based decisions") %>%
+        dplyr::mutate(
+            setting_label = factor(
+                setting_labels_pretty[setting_label],
+                levels = setting_labels_pretty
+            )
+        ) %>%
+        tibble::as_tibble()
+
+    # point estimates are nearly identical
+    p1 <- df %>%
+        dplyr::filter(threshold <= 0.9) %>%
+        dplyr::select(
+            threshold, setting_label, simulation_label, .type, estimate, .true_nb
+        ) %>%
+        tidyr::pivot_wider(names_from = .type, values_from = estimate) %>%
+        tidyr::pivot_longer(cols = c(.true_nb, Frequentist, Bayesian)) %>%
+        dplyr::mutate(
+            name = ifelse(
+                name == ".true_nb",
+                "True NB",
+                name
+            ),
+            name = forcats::fct_relevel(
+                name,
+                "True NB", "Bayesian", "Frequentist"
+            )
+        ) %>%
+        ggplot2::ggplot(ggplot2::aes(factor(threshold), value)) +
+        ggplot2::geom_boxplot(
+            ggplot2::aes(color = name),
+            position = ggplot2::position_dodge(width = .8),
+            width = .5, lwd = 0.9
+        ) +
+        ggplot2::facet_wrap(~setting_label, scales = "free") +
+        ggplot2::scale_color_manual(values = .colors) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Net benefit",
+            color = NULL
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/point_estimates_distributions.png"),
+        p1,
+        width = 19, height = 8.5, dpi = 600
+    )
+
+    # 95% intervals coverage
+
+    p2 <- df %>%
+        dplyr::group_by(threshold, .type, setting_label) %>%
+        dplyr::summarise(
+            cov = mean(truth_within_interval),
+            .groups = "drop"
+        ) %>%
+        dplyr::mutate(
+            .type = factor(
+                .type,
+                levels = c("Bayesian", "Frequentist")
+            )
+        ) %>%
+        dplyr::arrange(.type) %>%
+        ggplot2::ggplot(ggplot2::aes(threshold, cov, color = .type)) +
+        ggplot2::geom_hline(
+            yintercept = 0.95,
+            lty = 2,
+            alpha = 0.7,
+            color = "gray40",
+            linewidth = 0.5
+        ) +
+        ggplot2::geom_line(
+            ggplot2::aes(linetype = .type)
+        ) +
+        ggplot2::geom_point(
+            # position = position_dodge(width = .025),
+            ggplot2::aes(shape = .type, size = .type),
+            stroke = 1.5
+        ) +
+        ggplot2::facet_wrap(~setting_label) +
+        ggplot2::scale_y_continuous(
+            labels = scales::label_percent(),
+            limits = c(0.8, 1)
+        ) +
+        ggplot2::scale_color_manual(values = .colors) +
+        ggplot2::scale_shape_manual(values = c(19, 19)) +
+        ggplot2::scale_size_manual(values = c(3, 1.5)) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Empirical covarage\n(95% uncertainty intervals)",
+            color = NULL,
+            size = NULL,
+            linetype = NULL,
+            shape = NULL
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/empirical_coverage.png"),
+        p2,
+        width = 11, height = 5.5, dpi = 600
+    )
+
+    return(list(point_estimates = p1, coverage = p2))
 }

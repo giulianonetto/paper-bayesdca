@@ -63,6 +63,9 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
     df,
     thresholds = thresholds,
     refresh = refresh,
+    prior_p = c(0.5, 0.5),
+    prior_se = c(0.5, 0.5),
+    prior_sp = c(0.5, 0.5),
     cores = cores
   )
   if (isFALSE(.quiet)) {
@@ -279,12 +282,26 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
                          .setting_label = NULL,
                          overwrite = FALSE, cores = 1, .verbose = TRUE) {
   if (!is.null(result_path)) {
-    if (file.exists(result_path) & isFALSE(overwrite)) {
+    if (file.exists(result_path) && isFALSE(overwrite)) {
       msg <- cli::col_red(paste0(
         "Skipping simulation, cannot overwrite: ", result_path
       ))
       message(msg)
-      return(read_tsv(result_path, show_col_types = FALSE))
+      output <- list(
+        result = read_tsv(result_path, show_col_types = FALSE),
+        true_beta = true_beta,
+        beta_hat = beta_hat,
+        thresholds = thresholds,
+        n_pop = n_pop,
+        expected_events = events
+      )
+      return(output)
+    } else {
+      dir.create(
+        dirname(result_path),
+        showWarnings = FALSE,
+        recursive = TRUE
+      )
     }
   }
 
@@ -398,16 +415,7 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
     output[["p_hat"]] <- p_hat
   }
 
-  return(structure(output, class = "DCASimulation"))
-}
-
-#' Summarise simulated DCA results (Results' subsection 02)
-#' @param dca_simulation Object of class DCASimulation
-summarise_dca_simulation <- function(dca_simulation, simulation_id = NULL) {
-  stopifnot(
-    class(dca_simulation) == "DCASimulation"
-  )
-  # TODO
+  return(output)
 }
 
 #' Get simulation settings (Results' subsection 2)
@@ -416,22 +424,30 @@ get_simulation_settings <- function() {
     # AUC 0.65, prev 0.05 vs 0.06
     sim1 = list(
       true_beta = c(-3.1, -log(1.5), log(1.5)),
-      beta_hat = c(-3.9, -log(1.5) * 3, log(1.5) * 3)
+      beta_hat = c(-3.9, -log(1.5) * 3, log(1.5) * 3),
+      auc = 0.65,
+      prev = 0.05
     ),
     # AUC 0.65, prev 0.3 vs 0.3
     sim2 = list(
       true_beta = c(-0.9, -log(1.55), log(1.55)),
-      beta_hat = c(-1.2, -log(1.55) * 3, log(1.55) * 3)
+      beta_hat = c(-1.2, -log(1.55) * 3, log(1.55) * 3),
+      auc = 0.65,
+      prev = 0.3
     ),
     # AUC 0.85, prev  0.05 vs 0.06
     sim3 = list(
       true_beta = c(-3.755, -log(2.95), log(2.95)),
-      beta_hat = c(-7.3, -log(2.95) * 3, log(2.95) * 3)
+      beta_hat = c(-7.3, -log(2.95) * 3, log(2.95) * 3),
+      auc = 0.85,
+      prev = 0.05
     ),
     # AUC 0.85, prev  0.3 vs 0.32
     sim4 = list(
       true_beta = c(-1.3, -log(4.5), log(4.5)),
-      beta_hat = c(-2.25, -log(4.5) * 3, log(4.5) * 3)
+      beta_hat = c(-2.25, -log(4.5) * 3, log(4.5) * 3),
+      auc = 0.85,
+      prev = 0.3
     )
   )
 
