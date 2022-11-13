@@ -63,9 +63,9 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
     df,
     thresholds = thresholds,
     refresh = refresh,
-    prior_p = c(0.5, 0.5),
-    prior_se = c(0.5, 0.5),
-    prior_sp = c(0.5, 0.5),
+    # prior_p = c(0.5, 0.5),
+    # prior_se = c(0.5, 0.5),
+    # prior_sp = c(0.5, 0.5),
     cores = cores
   )
   if (isFALSE(.quiet)) {
@@ -227,20 +227,6 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
     )
 
   return(.plot)
-}
-
-#' Get subsamples
-#' @param n_event Number of events
-#' @param n_nonevent Number of non-events
-#' @df Data to subsample
-#' @y Outcome variable name
-get_subsamples <- function(n_event, n_nonevent, df, y) {
-  df[
-    c(
-      sample(which(df[[y]] == 1), n_event),
-      sample(which(df[[y]] == 0), n_nonevent)
-    ),
-  ]
 }
 
 #' Compute net benefit for given threshold

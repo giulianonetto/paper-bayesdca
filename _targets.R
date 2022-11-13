@@ -17,22 +17,21 @@ tar_option_set(
 )
 
 simulation_dir <- str_path("output/simulation_study")
-thresholds <- seq(0, 0.9, 0.05)
 
 # Replace the target list below with your own:
 list(
   tar_target(
     name = results_01_subsection,
     command = run_bayes_vs_frequentist(
-      thresholds = thresholds,
+      thresholds = seq(0, 0.9, 0.01),
       .seed = .seed
     )
   ),
   tar_target(
     name = results_02_subsection,
     command = run_simulation_study(
-      n_sim = 50,
-      thresholds = results_01_subsection$thresholds,
+      n_sim = 200,
+      thresholds = seq(0, 0.9, 0.05),
       n_pop = 1e6,
       outdir = simulation_dir,
       overwrite = FALSE,

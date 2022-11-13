@@ -246,13 +246,24 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             )
         ) %>%
         ggplot2::ggplot(ggplot2::aes(factor(threshold), value)) +
+        ggplot2::geom_hline(
+            yintercept = 0,
+            lty = 2,
+            alpha = 0.7,
+            color = "gray40",
+            linewidth = 0.5
+        ) +
         ggplot2::geom_boxplot(
             ggplot2::aes(color = name),
             position = ggplot2::position_dodge(width = .8),
-            width = .5, lwd = 0.9
+            width = .5, lwd = 0.55
         ) +
-        ggplot2::facet_wrap(~setting_label, scales = "free") +
+        ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
+        ggplot2::scale_x_discrete(breaks = scales::pretty_breaks(10)) +
+        ggplot2::theme(
+            legend.position = c(.1, .15)
+        ) +
         ggplot2::labs(
             x = "Decision threshold",
             y = "Net benefit",
@@ -262,7 +273,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/point_estimates_distributions.png"),
         p1,
-        width = 19, height = 8.5, dpi = 600
+        width = 12, height = 6.5, dpi = 600
     )
 
     # 95% intervals coverage
@@ -280,7 +291,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             )
         ) %>%
         dplyr::arrange(.type) %>%
-        ggplot2::ggplot(ggplot2::aes(threshold, cov, color = .type)) +
+        ggplot2::ggplot(ggplot2::aes(factor(threshold), cov, color = .type)) +
         ggplot2::geom_hline(
             yintercept = 0.95,
             lty = 2,
@@ -289,7 +300,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             linewidth = 0.5
         ) +
         ggplot2::geom_line(
-            ggplot2::aes(linetype = .type)
+            ggplot2::aes(linetype = .type, group = .type)
         ) +
         ggplot2::geom_point(
             # position = position_dodge(width = .025),
@@ -299,11 +310,17 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::facet_wrap(~setting_label) +
         ggplot2::scale_y_continuous(
             labels = scales::label_percent(),
-            limits = c(0.8, 1)
+            limits = c(0.75, 1)
         ) +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::scale_shape_manual(values = c(19, 19)) +
-        ggplot2::scale_size_manual(values = c(3, 1.5)) +
+        ggplot2::scale_x_discrete(
+            breaks = scales::pretty_breaks(10)
+        ) +
+        ggplot2::scale_size_manual(values = c(2.5, 1.25)) +
+        ggplot2::theme(
+            legend.position = c(.12, .135)
+        ) +
         ggplot2::labs(
             x = "Decision threshold",
             y = "Empirical covarage\n(95% uncertainty intervals)",
@@ -316,7 +333,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/empirical_coverage.png"),
         p2,
-        width = 11, height = 5.5, dpi = 600
+        width = 9, height = 5.5, dpi = 600
     )
 
     return(list(point_estimates = p1, coverage = p2))
