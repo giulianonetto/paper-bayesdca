@@ -338,3 +338,114 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     return(list(point_estimates = p1, coverage = p2))
 }
+
+#' Run Baysian DCA case study (Results' subsection 03)
+#' @param .seed Global rng seed.
+run_case_study <- function(.seed) {
+    import::from(magrittr, `%>%`)
+
+    d <- readr::read_csv(
+        str_path("data/12916_2019_1425_MOESM1_ESM.csv"),
+        show_col_types = FALSE
+    ) %>%
+        dplyr::select(
+            outcomes := outcome,
+            model_predictions := pred
+        )
+
+    ## noise predictor
+    set.seed(.seed)
+    z <- rnorm(nrow(d), mean = 0, sd = 2)
+
+    d <- d %>%
+        dplyr::mutate(
+            binary_test = as.numeric(model_predictions > 0.5),
+            model_predictions2 = plogis(
+                qlogis(model_predictions) + log(5) * z
+            )
+        )
+
+
+    # Fit Bayesian Decision Curve Analysis ----
+
+    fit <- bayesDCA::dca(d, cores = 4)
+
+    return(fit)
+}
+
+
+plot_case_study_results <- function(fit, outdir) {
+    library(patchwork)
+
+    # Plot DCA ----
+
+    .labels <- list(
+        "model_predictions" = "ADNEX",
+        "binary_test" = "Binary test/Classifier",
+        "model_predictions2" = "ADNEX updated"
+    )
+    dca_plot <- bayesDCA:::plot.BayesDCAList(
+        fit,
+        labels = .labels
+    ) +
+        ggplot2::theme(
+            legend.position = c(0.2, 0.35),
+            legend.text = ggplot2::element_text(size = 9)
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/dca.png"),
+        dca_plot,
+        width = 8, height = 4.5, dpi = 600
+    )
+
+
+    # Interrogate posteriors ----
+    plots_best <- bayesDCA::compare_dca(
+        fit,
+        plot_list = TRUE
+    )
+    plots_useful <- bayesDCA::compare_dca(
+        fit,
+        plot_list = TRUE,
+        type = "useful", labels = .labels
+    )
+
+    p1 <- plots_useful$prob_better
+    p2 <- plots_useful$delta +
+        ggplot2::guides(
+            color = ggplot2::guide_legend(title = NULL)
+        ) +
+        ggplot2::theme(
+            legend.position = c(0.75, 0.25),
+            legend.text = ggplot2::element_text(size = 8),
+            legend.key.size = ggplot2::unit(0.5, "cm")
+        )
+    p3 <- plots_best$prob_better
+    p4 <- plots_best$delta
+
+    posterior_iterrogation_plots <- ((p1 / p2) | (p3 / p4)) +
+        patchwork::plot_annotation(tag_levels = "A")
+
+    ggplot2::ggsave(
+        str_path("{outdir}/dca-posterior-interrogation.png"),
+        posterior_iterrogation_plots,
+        width = 10, height = 6.75, dpi = 600
+    )
+
+    # EVPI ----
+
+    evpi_plot <- bayesDCA:::plot_evpi(fit)
+    ggplot2::ggsave(
+        str_path("outdir/case-study/evpi.png"),
+        evpi_plot,
+        width = 8, height = 4.5, dpi = 600
+    )
+
+    output <- list(
+        dca = dca_plot,
+        posterior_interrogation = posterior_iterrogation_plots,
+        evpi = evpi_plot
+    )
+    return(output)
+}

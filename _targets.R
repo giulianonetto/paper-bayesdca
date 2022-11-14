@@ -46,5 +46,18 @@ list(
       outdir = simulation_dir,
       global_simulation_seed = .seed
     )
+  ),
+  tar_target(
+    name = results_03_subsection,
+    command = run_case_study(
+      .seed = .seed
+    )
+  ),
+  tar_target(
+    name = results_03_subsection_plots,
+    command = plot_case_study_results(
+      fit = results_03_subsection,
+      outdir = str_path("output/case-study")
+    )
   )
 )

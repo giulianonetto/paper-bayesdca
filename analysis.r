@@ -1,82 +1,44 @@
 library(tidyverse)
-theme_set(theme_bw(base_size = 14))
-.colors <- RColorBrewer::brewer.pal(3, "Dark2")
-names(.colors) <- c(
-    "True NB", "Frequentist", "Bayesian"
-)
-.colors[".true_nb"] <- .colors[1]
+library(bayesDCA)
 
-setting_labels_pretty <- map_chr(
-    get_simulation_settings(),
-    ~ paste0(
-        "AUC ", .x$auc, ", prevalence ", round(.x$prev * 100), "%"
+d <- read_csv(
+    "data/tmp/adnex/12916_2019_1425_MOESM1_ESM.csv",
+    show_col_types = FALSE
+) %>%
+    dplyr::select(
+        outcomes := outcome,
+        model_predictions := pred
     )
-)
 
-df <- results_02_subsection %>%
-    filter(strategy == "Model-based decisions") %>%
-    mutate(
-        setting_label = factor(
-            setting_labels_pretty[setting_label],
-            levels = setting_labels_pretty
+# noise predictor
+set.seed(1234456)
+z <- rnorm(nrow(d), mean = 0, sd = 2)
+
+d <- d %>%
+    dplyr::mutate(
+        binary_test = as.numeric(model_predictions > 0.5),
+        model_predictions2 = plogis(
+            qlogis(model_predictions) + log(5) * z
         )
-    ) %>%
-    as_tibble()
-
-# point estimates are nearly identical
-df %>%
-    select(threshold, setting_label, simulation_label, .type, estimate, .true_nb) %>%
-    pivot_wider(names_from = .type, values_from = estimate) %>%
-    pivot_longer(cols = c(.true_nb, Frequentist, Bayesian)) %>%
-    mutate(
-        name = ifelse(
-            name == ".true_nb",
-            "True NB",
-            name
-        ),
-        name = fct_relevel(
-            name,
-            "True NB", "Bayesian", "Frequentist"
-        )
-    ) %>%
-    ggplot(aes(factor(threshold), value)) +
-    geom_boxplot(aes(color = name), position = position_dodge(width = .8), width = .5, lwd = 2) +
-    facet_wrap(~setting_label, scales = "free") +
-    scale_color_manual(values = .colors) +
-    labs(
-        x = "Decision threshold",
-        y = "Net benefit",
-        color = NULL
     )
 
-# 95% intervals coverage
+fit <- dca(d, cores = 4, refresh = 1)
 
-df %>%
-    group_by(threshold, .type, setting_label) %>%
-    summarise(
-        cov = mean(truth_within_interval)
-    ) %>%
-    ggplot(aes(threshold, cov, color = .type)) +
-    geom_point(
-        # position = position_dodge(width = .025),
-        aes(shape = .type, size = .type), stroke = 1.5
-    ) +
-    geom_line(
-        aes(linetype = .type)
-    ) +
-    facet_wrap(~setting_label) +
-    scale_y_continuous(
-        labels = scales::label_percent(),
-        limits = c(0.8, 1)
-    ) +
-    scale_color_manual(values = .colors) +
-    scale_shape_manual(values = c(21, 19)) +
-    scale_size_manual(values = c(4, 2)) +
-    labs(
-        x = "Decision threshold",
-        y = "Empirical covarage\n(95% uncertainty intervals)",
-        color = NULL,
-        size = NULL,
-        linetype = NULL,
-        shape = NULL
+.labels <- list(
+    "model_predictions" = "ADNEX",
+    "binary_test" = "Binary test/Classifier",
+    "model_predictions2" = "ADNEX updated"
+)
+plot(fit, labels = .labels) +
+    ggplot2::theme(
+        legend.position = c(0.2, 0.35),
+        legend.text = ggplot2::element_text(size = 9)
     )
+
+ggsave(
+    "output/case-study/dca.png",
+    width = 8, height = 4.5, dpi = 600
+)
+
+plots_best <- compare_dca(fit, plot_list = TRUE)
+plots_useful <- compare_dca(fit, plot_list = TRUE, type = "useful")
