@@ -437,7 +437,7 @@ plot_case_study_results <- function(fit, outdir) {
 
     evpi_plot <- bayesDCA:::plot_evpi(fit)
     ggplot2::ggsave(
-        str_path("outdir/case-study/evpi.png"),
+        str_path("{outdir}/evpi.png"),
         evpi_plot,
         width = 8, height = 4.5, dpi = 600
     )
