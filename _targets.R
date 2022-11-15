@@ -50,6 +50,7 @@ list(
   tar_target(
     name = results_03_subsection,
     command = run_case_study(
+      thresholds = seq(0, 0.5, 0.01),
       .seed = .seed
     )
   ),

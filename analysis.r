@@ -2,7 +2,7 @@ library(tidyverse)
 library(bayesDCA)
 
 d <- read_csv(
-    "data/tmp/adnex/12916_2019_1425_MOESM1_ESM.csv",
+    "data/12916_2019_1425_MOESM1_ESM.csv",
     show_col_types = FALSE
 ) %>%
     dplyr::select(
@@ -11,7 +11,7 @@ d <- read_csv(
     )
 
 # noise predictor
-set.seed(1234456)
+set.seed(12112022)
 z <- rnorm(nrow(d), mean = 0, sd = 2)
 
 d <- d %>%
