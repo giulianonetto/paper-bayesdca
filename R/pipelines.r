@@ -228,7 +228,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # point estimates are nearly identical
     p1 <- df %>%
-        dplyr::filter(threshold <= 0.9) %>%
+        dplyr::filter(threshold %in% seq(0, 0.9, 0.1)) %>%
         dplyr::select(
             threshold, setting_label, simulation_label, .type, estimate, .true_nb
         ) %>%
