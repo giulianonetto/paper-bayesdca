@@ -407,29 +407,43 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
 #' Get simulation settings (Results' subsection 2)
 get_simulation_settings <- function() {
   simulation_settings <- list(
-    # AUC 0.65, prev 0.05 vs 0.06
+    # AUC 0.65, prev 0.01 vs 0.0096
     sim1 = list(
+      true_beta = c(-4.75, -log(1.5), log(1.5)),
+      beta_hat = c(-5, -log(1.5) * 1.25, log(1.5) * 1.25),
+      auc = 0.65,
+      prev = 0.01
+    ),
+    # AUC 0.65, prev 0.05 vs 0.06
+    sim2 = list(
       true_beta = c(-3.1, -log(1.5), log(1.5)),
       beta_hat = c(-3.9, -log(1.5) * 3, log(1.5) * 3),
       auc = 0.65,
       prev = 0.05
     ),
     # AUC 0.65, prev 0.3 vs 0.3
-    sim2 = list(
+    sim3 = list(
       true_beta = c(-0.9, -log(1.55), log(1.55)),
       beta_hat = c(-1.2, -log(1.55) * 3, log(1.55) * 3),
       auc = 0.65,
       prev = 0.3
     ),
+    # AUC 0.85, prev  0.01 vs 0.009
+    sim4 = list(
+      true_beta = c(-5.6, -log(2.57), log(2.57)),
+      beta_hat = c(-6.9, -log(2.57) * 1.5, log(2.57) * 1.5),
+      auc = 0.85,
+      prev = 0.01
+    ),
     # AUC 0.85, prev  0.05 vs 0.06
-    sim3 = list(
+    sim5 = list(
       true_beta = c(-3.755, -log(2.95), log(2.95)),
       beta_hat = c(-7.3, -log(2.95) * 3, log(2.95) * 3),
       auc = 0.85,
       prev = 0.05
     ),
     # AUC 0.85, prev  0.3 vs 0.32
-    sim4 = list(
+    sim6 = list(
       true_beta = c(-1.3, -log(4.5), log(4.5)),
       beta_hat = c(-2.25, -log(4.5) * 3, log(4.5) * 3),
       auc = 0.85,
@@ -438,4 +452,33 @@ get_simulation_settings <- function() {
   )
 
   return(simulation_settings)
+}
+
+test_sim_setting <- function(.sim, n = 1e5, .return = FALSE) {
+  x <- cbind(1, rexp(n, 1), rexp(n, 1))
+  p <- as.vector(
+    plogis(x %*% .sim$true_beta)
+  )
+  phat <- as.vector(
+    plogis(x %*% .sim$beta_hat)
+  )
+  y <- rbinom(n, 1, p)
+  suppressMessages({
+    suppressWarnings({
+      a <- round(pROC::auc(y, p)[1], 2)
+      b <- round(pROC::auc(y, phat)[1], 2)
+    })
+  })
+  print(stringr::str_glue("Claimed AUC: {.sim$auc}"))
+  print(stringr::str_glue("Claimed prev: {.sim$prev}"))
+  print(stringr::str_glue("AUC p: {a}"))
+  print(stringr::str_glue("AUC phat: {b}"))
+  print(stringr::str_glue("Prevalence y: {round(mean(y), 3)}"))
+  print(stringr::str_glue("Prevalence phat: {round(mean(phat), 3)}"))
+  print(stringr::str_glue("High preds prop: {round(mean(phat > .3), 5)}"))
+  print(stringr::str_glue("MAX p: {round(max(p), 2)}"))
+  print(stringr::str_glue("MAX phat: {round(max(phat), 2)}"))
+  if (isTRUE(.return)) {
+    return(list(p = p, phat = phat, y = y))
+  }
 }

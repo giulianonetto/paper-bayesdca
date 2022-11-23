@@ -2,7 +2,7 @@
 library(targets)
 library(here)
 source(here("R/utils.r"))
-source(here("R/pipelines.r"))
+source(here("R/pipeline_functions.r"))
 options(tidyverse.quiet = TRUE)
 
 # global seed
