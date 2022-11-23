@@ -47,6 +47,7 @@ _targets/objects
 
 # simulation tmp files
 output/simulation_study/tmp/
+output/simulation_study/tmp2/
 
 # tmp data
 data/tmp/
