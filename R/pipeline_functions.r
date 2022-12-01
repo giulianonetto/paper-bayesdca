@@ -262,7 +262,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::scale_x_discrete(breaks = scales::pretty_breaks(10)) +
         ggplot2::theme(
-            legend.position = c(.1, .15)
+            legend.position = c(.2, .85)
         ) +
         ggplot2::labs(
             x = "Decision threshold",

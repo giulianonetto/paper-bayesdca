@@ -1,11 +1,48 @@
-import::from(pROC, auc)
-n <- 5e5
-x <- cbind(1, rnorm(n), rnorm(n))
-true_beta <- c(-5.65, -log(2.95), log(2.95))
-beta_hat <- c(-7, -log(2.95) * 1.5, log(2.95) * 1.5)
-p <- as.vector(plogis(x %*% true_beta))
-phat <- as.vector(plogis(x %*% beta_hat))
-y <- rbinom(n, 1, p)
+library(tidyverse)
+theme_set(theme_bw(base_size = 14))
+library(bayesDCA)
+
+load(
+    here::here("data/gusto.rda")
+)
+source("R/utils.r")
+.seed <- 12112022
+set.seed(.seed)
+test_ix <- sample(nrow(gusto), 500)
+dev_data <- gusto[-test_ix, ]
+test_data <- gusto[test_ix, ]
 
 
-test_sim_setting(get_simulation_settings()$sim1)
+fit_gusto <- glm(
+    day30 ~ age + sysbp + pulse + Killip,
+    data = dev_data,
+    family = binomial
+)
+
+test_data$phat1 <- predict(
+    fit_gusto,
+    newdata = test_data,
+    type = "response"
+)
+thresholds <- seq(0, 0.99, 0.02)
+plot_gusto <- plot_bdca_vs_rmda(
+    dataset = test_data,
+    outcomes = "day30",
+    predictor = "phat1",
+    thresholds = thresholds,
+    constant_prior = TRUE,
+    bootstraps = 2e3
+) +
+    theme(legend.position = c(.7, .7)) +
+    labs(title = NULL)
+
+plot_gusto2 <- plot_bdca_vs_rmda(
+    dataset = test_data,
+    outcomes = "day30",
+    predictor = "phat1",
+    thresholds = thresholds,
+    constant_prior = FALSE,
+    bootstraps = 2e3
+) +
+    theme(legend.position = c(.7, .7)) +
+    labs(title = NULL)

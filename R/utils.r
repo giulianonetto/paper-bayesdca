@@ -41,6 +41,7 @@ expit <- function(x) {
 #' @param predictor predicted probabilities (character string with column name)
 #' @param bootstraps Number (int) of bootstrap samples for rmda
 #' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
+#' @param constant_prior Whether to use same uniform prior for all pars
 #' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
 #' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
 #' @param thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
@@ -48,6 +49,7 @@ expit <- function(x) {
 compare_bdca_vs_rmda <- function(dataset, outcomes,
                                  predictor, thresholds,
                                  treat_all_rmda = FALSE, bootstraps = 500,
+                                 constant_prior = TRUE,
                                  refresh = 0, .quiet = FALSE, cores = 1) {
   df <- data.frame(
     outcomes = dataset[[outcomes]],
@@ -63,9 +65,7 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
     df,
     thresholds = thresholds,
     refresh = refresh,
-    # prior_p = c(0.5, 0.5),
-    # prior_se = c(0.5, 0.5),
-    # prior_sp = c(0.5, 0.5),
+    constant_prior = constant_prior,
     cores = cores
   )
   if (isFALSE(.quiet)) {
@@ -140,6 +140,7 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
 #' @param outcomes outcome variable (character string with column name)
 #' @param predictor predicted probabilities (character string with column name)
 #' @param bootstraps Number`data.frame` with outcomes and predictor of outcome (int) of bootstrap samples for rmda
+#' @param constant_prior Whether to use same uniform prior for all pars.
 #' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
 #' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
 #' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
@@ -149,6 +150,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
                               dataset = NULL, outcomes = NULL,
                               predictor = NULL, thresholds = NULL,
                               treat_all_rmda = FALSE, bootstraps = 500,
+                              constant_prior = TRUE,
                               refresh = 0, cores = 1, .quiet = FALSE) {
   import::from(magrittr, `%>%`)
 
@@ -157,6 +159,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
       dataset = dataset, outcomes = outcomes,
       predictor = predictor, thresholds = thresholds,
       treat_all_rmda = FALSE, bootstraps = 500,
+      constant_prior = constant_prior,
       refresh = 0, cores = cores, .quiet = FALSE
     )
   }

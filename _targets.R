@@ -31,7 +31,7 @@ list(
     name = results_02_subsection,
     command = run_simulation_study(
       n_sim = 200,
-      thresholds = seq(0, 0.9, 0.05),
+      thresholds = seq(0, 0.5, 0.05),
       n_pop = 1e6,
       outdir = simulation_dir,
       overwrite = FALSE,
