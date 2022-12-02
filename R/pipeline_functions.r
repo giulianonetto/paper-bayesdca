@@ -142,7 +142,12 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
                                  outdir, overwrite, .seed, .workers = 2, .verbose = FALSE) {
     simulation_results_file <- str_path("{outdir}/simulation_results.tsv")
     if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
-        simulation_results <- readr::read_tsv(simulation_results_file)
+        msg <- cli::col_br_red("Simulation results axist and will not be overwritten")
+        message(msg)
+        simulation_results <- readr::read_tsv(
+            simulation_results_file,
+            show_col_types = FALSE
+        )
         return(simulation_results)
     }
     # Simulation section ----
@@ -260,10 +265,12 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) %>%
         tibble::as_tibble()
 
+    thresholds <- sort(unique(df$threshold))
+
     # point estimates are nearly identical
     p1 <- df %>%
         # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
-        dplyr::filter(threshold <= 1) %>%
+        dplyr::filter(threshold <= .75) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, estimate, .true_nb
         ) %>%
@@ -278,9 +285,14 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             name = forcats::fct_relevel(
                 name,
                 "True NB", sort(estimation_types)
+            ),
+            thr_factor = factor(
+                threshold,
+                levels = thresholds,
+                labels = scales::percent(thresholds)
             )
         ) %>%
-        ggplot2::ggplot(ggplot2::aes(factor(threshold), value)) +
+        ggplot2::ggplot(ggplot2::aes(thr_factor, value)) +
         ggplot2::geom_hline(
             yintercept = 0,
             lty = 2,
@@ -313,19 +325,17 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
                 ),
             ggplot2::aes(
                 y = value, yend = value,
-                x = as.numeric(factor(threshold)) - 0.2,
-                xend = as.numeric(factor(threshold)) + 0.2,
+                x = as.numeric(thr_factor) - 0.5,
+                xend = as.numeric(thr_factor) + 0.5,
                 color = name
             ),
-            linewidth = 1.2
+            linewidth = 0.9
         ) +
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
-        ggplot2::scale_x_discrete(
-            breaks = factor(unique(df$threshold))
-        ) +
         ggplot2::theme(
-            legend.position = c(.2, .85)
+            legend.position = "top",
+            axis.text.x = ggplot2::element_text(size = 10)
         ) +
         ggplot2::labs(
             x = "Decision threshold",
@@ -342,7 +352,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # 95% intervals coverage
 
     p2 <- df %>%
-        dplyr::filter(threshold <= 1) %>%
+        dplyr::filter(threshold <= .75) %>%
         dplyr::group_by(threshold, .type, setting_label) %>%
         dplyr::summarise(
             cov = mean(truth_within_interval),
@@ -352,10 +362,15 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             .type = factor(
                 .type,
                 levels = sort(estimation_types)
+            ),
+            thr_factor = factor(
+                threshold,
+                levels = thresholds,
+                labels = scales::percent(thresholds)
             )
         ) %>%
         dplyr::arrange(.type) %>%
-        ggplot2::ggplot(ggplot2::aes(factor(threshold), cov, color = .type)) +
+        ggplot2::ggplot(ggplot2::aes(thr_factor, cov, color = .type)) +
         ggplot2::geom_hline(
             yintercept = 0.95,
             lty = 2,
@@ -373,19 +388,16 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) +
         ggplot2::facet_wrap(~setting_label) +
         ggplot2::scale_y_continuous(
-            labels = scales::label_percent(),
-            limits = c(0.75, 1)
+            labels = scales::label_percent()
         ) +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::scale_shape_manual(values = rep(19, n_types)) +
-        ggplot2::scale_x_discrete(
-            breaks = factor(unique(df$threshold))
-        ) +
         ggplot2::scale_size_manual(values = c(1, 2 / 3, 1 / 3) * 3) +
         ggplot2::theme(
             legend.position = c(.12, .135),
             axis.text.x = ggplot2::element_text(size = 10)
         ) +
+        ggplot2::coord_cartesian(ylim = c(0, 1)) +
         ggplot2::labs(
             x = "Decision threshold",
             y = "Empirical covarage\n(95% uncertainty intervals)",
@@ -404,7 +416,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # absolute error
     p3 <- df %>%
         # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
-        dplyr::filter(threshold <= 1) %>%
+        dplyr::filter(threshold <= .75) %>%
         dplyr::mutate(abs_error = estimate - .true_nb) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, abs_error
@@ -415,9 +427,14 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             name = factor(
                 as.character(name),
                 levels = sort(estimation_types)
+            ),
+            thr_factor = factor(
+                threshold,
+                levels = thresholds,
+                labels = scales::percent(thresholds)
             )
         ) %>%
-        ggplot2::ggplot(ggplot2::aes(factor(threshold), value)) +
+        ggplot2::ggplot(ggplot2::aes(thr_factor, value)) +
         ggplot2::geom_hline(
             yintercept = 0,
             lty = 2,
@@ -440,11 +457,9 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) +
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
-        ggplot2::scale_x_discrete(
-            breaks = factor(unique(df$threshold))
-        ) +
         ggplot2::theme(
-            legend.position = "top"
+            legend.position = "top",
+            axis.text.x = ggplot2::element_text(size = 10)
         ) +
         ggplot2::labs(
             x = "Decision threshold",
@@ -461,7 +476,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # ci width
     p4 <- df %>%
         # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
-        dplyr::filter(threshold <= 1) %>%
+        dplyr::filter(threshold <= .75) %>%
         dplyr::mutate(ci_width = .upper - .lower) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, ci_width
@@ -472,9 +487,14 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             name = factor(
                 as.character(name),
                 levels = sort(estimation_types)
+            ),
+            thr_factor = factor(
+                threshold,
+                levels = thresholds,
+                labels = scales::percent(thresholds)
             )
         ) %>%
-        ggplot2::ggplot(ggplot2::aes(factor(threshold), value)) +
+        ggplot2::ggplot(ggplot2::aes(thr_factor, value)) +
         ggplot2::geom_hline(
             yintercept = 0,
             lty = 2,
@@ -497,11 +517,9 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) +
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
-        ggplot2::scale_x_discrete(
-            breaks = factor(unique(df$threshold))
-        ) +
         ggplot2::theme(
-            legend.position = "top"
+            legend.position = "top",
+            axis.text.x = ggplot2::element_text(size = 10)
         ) +
         ggplot2::labs(
             x = "Decision threshold",

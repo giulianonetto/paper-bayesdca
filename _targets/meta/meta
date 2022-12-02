@@ -9,19 +9,19 @@ get_simulation_settings|function|53b17184cb147b77|||||||||||||||
 get_subsamples|function|8ba7988cfc208c95|||||||||||||||
 plot_bdca_vs_rmda|function|84d3329ee205afcf|||||||||||||||
 plot_case_study_results|function|17c8a1daa1878f75|||||||||||||||
-plot_simulation_results|function|697cb02202186b99|||||||||||||||
-results_01_subsection|stem|5be033b22ce28b20|1b8bfcfb6bd5c969|93e028c7de679f1c|-1984634709||t19328.2288541667s|808de3017cc83a2a|584977359|rds|local|vector|||58.421||
-results_02_subsection|stem|6c31d720d58320df|007b182a295d35ed|748869a42f0a3e18|130078453||t19328.3784837963s|d13868e7e6379347|18032252|rds|local|vector|||1015.796||
-results_02_subsection_plots|stem|19020a5ce335cfec|72b5a3a3a6097977|5b5e698742422e35|-2136702755||t19328.3788194444s|f2dec7fee9f747db|68298031|rds|local|vector|||19.021|Removed 7 rows containing missing values geom_point.|
-results_03_subsection|stem|8cd2a3c9b64e576b|8da817af14dd58c0|686710668f483dc8|1812452782||t19328.2290046296s|c8ba3d410052e1ec|19256004|rds|local|vector|||11.089||
-results_03_subsection_plots|stem|64a471aa233f19e6|d6aa421274b4ce45|5deaf7c144341871|965455883||t19328.2293518519s|c2e0bbfc242fa778|121750651|rds|local|vector|||4.123|Using the size aesthietic with geom_segment was deprecated in ggplot2 3.4.0.ℹ Please use the linewidth aesthetic instead.. is.na applied to nonlist or vector of type expression|
+plot_simulation_results|function|d8786045f4c06905|||||||||||||||
+results_01_subsection|stem|5be033b22ce28b20|1b8bfcfb6bd5c969|93e028c7de679f1c|-1984634709||t19328.3370553635s|808de3017cc83a2a|584977359|rds|local|vector|||58.421||
+results_02_subsection|stem|8213cd1acd3e6051|007b182a295d35ed|105a91643f5168dd|130078453||t19328.4025993984s|8b4ba920b40cae8d|18032577|rds|local|vector|||3.18||
+results_02_subsection_plots|stem|6cb19d56f769d1e0|72b5a3a3a6097977|1e02846548a42009|-2136702755||t19328.4349469181s|77370141f483e025|64120680|rds|local|vector|||24.502||
+results_03_subsection|stem|8cd2a3c9b64e576b|8da817af14dd58c0|686710668f483dc8|1812452782||t19328.3359125744s|c8ba3d410052e1ec|19256004|rds|local|vector|||11.089||
+results_03_subsection_plots|stem|64a471aa233f19e6|d6aa421274b4ce45|5deaf7c144341871|965455883||t19328.3372995789s|c2e0bbfc242fa778|121750651|rds|local|vector|||4.123|Using the size aesthietic with geom_segment was deprecated in ggplot2 3.4.0.ℹ Please use the linewidth aesthetic instead.. is.na applied to nonlist or vector of type expression|
 run_bayes_vs_frequentist|function|09498ae44f0ba7fa|||||||||||||||
 run_case_study|function|5c1f1922e873aeaf|||||||||||||||
 run_dca_simulation|function|f092f1d8a3e5814c|||||||||||||||
-run_simulation_study|function|8a9e559a640e39bd|||||||||||||||
+run_simulation_study|function|4b3cb4aaa99ae17b|||||||||||||||
 simulate_dca|function|3bbdeeedacb7a108|||||||||||||||
 simulate_dca_population|function|79684121dac43131|||||||||||||||
-simulation_dir|object|ef6c7a8a2fadb7dc|||||||||||||||
+simulation_dir|object|3493f56f9d9830a7|||||||||||||||
 simulation_output_dir|object|e099a280849291ea|||||||||||||||
 str_path|function|ceb8215a18d486a2|||||||||||||||
 summarise_dca_simulation|function|7ba131cd096a7ea9|||||||||||||||
