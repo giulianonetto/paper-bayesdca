@@ -35,7 +35,7 @@ list(
       n_pop = 2e6,
       outdir = simulation_dir,
       overwrite = FALSE,
-      .workers = 40,
+      .workers = 32,
       .seed = .seed,
       .verbose = TRUE
     )
