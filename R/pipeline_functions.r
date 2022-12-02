@@ -140,6 +140,11 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
 
 run_simulation_study <- function(n_sim, thresholds, n_pop,
                                  outdir, overwrite, .seed, .workers = 2, .verbose = FALSE) {
+    simulation_results_file <- str_path("{outdir}/simulation_results.tsv")
+    if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
+        simulation_results <- readr::read_tsv(simulation_results_file)
+        return(simulation_results)
+    }
     # Simulation section ----
     thresholds <- validate_thresholds(thresholds = thresholds)
     dir.create(
@@ -213,6 +218,10 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
     }
 
     simulation_results <- as.data.frame(dplyr::bind_rows(simulation_results))
+    readr::write_tsv(
+        simulation_results,
+        simulation_results_file
+    )
 
     return(simulation_results)
 }
@@ -253,8 +262,8 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # point estimates are nearly identical
     p1 <- df %>%
-        #dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
-	dplyr::filter(threshold <= 0.5) %>%
+        # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
+        dplyr::filter(threshold <= 1) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, estimate, .true_nb
         ) %>%
@@ -333,7 +342,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # 95% intervals coverage
 
     p2 <- df %>%
-	dplyr::filter(threshold <= 0.5) %>%
+        dplyr::filter(threshold <= 1) %>%
         dplyr::group_by(threshold, .type, setting_label) %>%
         dplyr::summarise(
             cov = mean(truth_within_interval),
@@ -394,8 +403,8 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # absolute error
     p3 <- df %>%
-        #dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
-	dplyr::filter(threshold <= 0.5) %>%
+        # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
+        dplyr::filter(threshold <= 1) %>%
         dplyr::mutate(abs_error = estimate - .true_nb) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, abs_error
@@ -451,8 +460,8 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # ci width
     p4 <- df %>%
-        #dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
-	dplyr::filter(threshold <= 0.5) %>%
+        # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
+        dplyr::filter(threshold <= 1) %>%
         dplyr::mutate(ci_width = .upper - .lower) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, ci_width
