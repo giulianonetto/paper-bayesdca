@@ -52,6 +52,7 @@ output/simulation_study/tmp2/
 # tmp data
 data/tmp/
 .config
+bkp/
 
 # sockeye files
 *.pbs

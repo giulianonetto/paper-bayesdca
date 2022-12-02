@@ -30,11 +30,12 @@ list(
   tar_target(
     name = results_02_subsection,
     command = run_simulation_study(
-      n_sim = 500,
+      n_sim = 2000,
       thresholds = c(0, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1),
       n_pop = 2e6,
       outdir = simulation_dir,
       overwrite = FALSE,
+      .workers = 40,
       .seed = .seed,
       .verbose = TRUE
     )

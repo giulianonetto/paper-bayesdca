@@ -139,7 +139,7 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
 }
 
 run_simulation_study <- function(n_sim, thresholds, n_pop,
-                                 outdir, overwrite, .seed, .verbose = FALSE) {
+                                 outdir, overwrite, .seed, .workers = 2, .verbose = FALSE) {
     # Simulation section ----
     thresholds <- validate_thresholds(thresholds = thresholds)
     dir.create(
@@ -181,7 +181,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
         )
         .true_prevalence <- mean(setting_population$true_p)
         .true_nb <- setting_population$true_nb
-        plan(multisession, workers = 10)
+        plan(multisession, workers = .workers)
         run_df <- furrr::future_map_dfr(
             df_sample_list,
             function(df_sample) {
