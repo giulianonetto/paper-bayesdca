@@ -52,3 +52,8 @@ output/simulation_study/tmp2/
 # tmp data
 data/tmp/
 .config
+
+# sockeye files
+*.pbs
+pbs/
+*.Rout

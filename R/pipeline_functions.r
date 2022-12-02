@@ -181,7 +181,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
         )
         .true_prevalence <- mean(setting_population$true_p)
         .true_nb <- setting_population$true_nb
-        plan(multisession, workers = 3)
+        plan(multisession, workers = 10)
         run_df <- furrr::future_map_dfr(
             df_sample_list,
             function(df_sample) {
