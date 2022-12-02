@@ -41,7 +41,7 @@ expit <- function(x) {
 #' @param predictor predicted probabilities (character string with column name)
 #' @param bootstraps Number (int) of bootstrap samples for rmda
 #' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
-#' @param constant_prior Whether to use same uniform prior for all pars
+#' @param show_informative_prior Whether to show results from BayesDCA with informative prior.
 #' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
 #' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
 #' @param thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
@@ -49,7 +49,7 @@ expit <- function(x) {
 compare_bdca_vs_rmda <- function(dataset, outcomes,
                                  predictor, thresholds,
                                  treat_all_rmda = FALSE, bootstraps = 500,
-                                 constant_prior = TRUE,
+                                 show_informative_prior = FALSE,
                                  refresh = 0, .quiet = FALSE, cores = 1) {
   df <- data.frame(
     outcomes = dataset[[outcomes]],
@@ -58,16 +58,31 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
   thresholds <- validate_thresholds(thresholds = thresholds)
   # Estimate decision curves
   if (isFALSE(.quiet)) {
-    msg <- cli::col_blue("Estimating DCA with bayesDCA")
+    msg <- cli::col_blue("Estimating DCA with bayesDCA (default)")
     message(msg)
   }
   bdca_fit <- bayesDCA::dca(
     df,
     thresholds = thresholds,
     refresh = refresh,
-    constant_prior = constant_prior,
+    constant_prior = TRUE,
     cores = cores
   )
+
+  if (isTRUE(show_informative_prior)) {
+    if (isFALSE(.quiet)) {
+      msg <- cli::col_blue("Estimating DCA with bayesDCA (thr-varying prior)")
+      message(msg)
+    }
+    bdca_fit_informative <- bayesDCA::dca(
+      df,
+      thresholds = thresholds,
+      refresh = refresh,
+      constant_prior = FALSE,
+      cores = cores
+    )
+  }
+
   if (isFALSE(.quiet)) {
     msg <- cli::col_blue("Estimating DCA with rmda")
     message(msg)
@@ -125,6 +140,30 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
     )
 
   res_all <- bind_rows(res_bdca, res_rmda)
+
+  if (isTRUE(show_informative_prior)) {
+    res_bdca_informative <- dplyr::bind_rows(
+      bdca_fit_informative$summary$net_benefit %>%
+        dplyr::select(
+          threshold, estimate,
+          .lower := `2.5%`, .upper := `97.5%`
+        ) %>%
+        dplyr::mutate(
+          .type = "Bayesian (informative prior)",
+          strategy = "Model-based decisions"
+        ),
+      bdca_fit_informative$summary$treat_all %>%
+        dplyr::select(
+          threshold, estimate,
+          .lower := `2.5%`, .upper := `97.5%`
+        ) %>%
+        dplyr::mutate(
+          .type = "Bayesian (informative prior)",
+          strategy = "Treat all"
+        )
+    )
+    res_all <- dplyr::bind_rows(res_all, res_bdca_informative)
+  }
   return(res_all)
 }
 
@@ -140,7 +179,7 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
 #' @param outcomes outcome variable (character string with column name)
 #' @param predictor predicted probabilities (character string with column name)
 #' @param bootstraps Number`data.frame` with outcomes and predictor of outcome (int) of bootstrap samples for rmda
-#' @param constant_prior Whether to use same uniform prior for all pars.
+#' @param show_informative_prior Whether to show results from informative prior Bayesian DCA
 #' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
 #' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
 #' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
@@ -150,7 +189,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
                               dataset = NULL, outcomes = NULL,
                               predictor = NULL, thresholds = NULL,
                               treat_all_rmda = FALSE, bootstraps = 500,
-                              constant_prior = TRUE,
+                              show_informative_prior = FALSE,
                               refresh = 0, cores = 1, .quiet = FALSE) {
   import::from(magrittr, `%>%`)
 
@@ -159,7 +198,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
       dataset = dataset, outcomes = outcomes,
       predictor = predictor, thresholds = thresholds,
       treat_all_rmda = FALSE, bootstraps = 500,
-      constant_prior = constant_prior,
+      show_informative_prior = show_informative_prior,
       refresh = 0, cores = cores, .quiet = FALSE
     )
   }
@@ -237,39 +276,115 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
 #' @param pred
 #' @param thr
 compute_nb <- function(y, pred, thr) {
-  tpr <- mean(
-    pred > thr & y == 1
-  )
-  fpr <- mean(
-    pred > thr & y == 0
-  )
+  tp_ix <- pred >= thr & y == 1
+  fp_ix <- pred >= thr & y == 0
+  tpr <- mean(tp_ix)
+  fpr <- mean(fp_ix)
   tibble::tibble(
     .thr = thr,
     nb = tpr - fpr * (thr / (1 - thr))
   )
 }
 
+#' Simulate population data for DCA simulation (Results's subsection 02)
+#'
+simulate_dca_population <- function(true_beta, beta_hat, n_pop, thresholds, .seed, .verbose = FALSE) {
+  thresholds <- validate_thresholds(thresholds = thresholds)
+  msg <- cli::col_blue(
+    paste0(
+      "Simulating population DCA data with population seed = ", .seed
+    )
+  )
+  message(msg)
+  d <- length(true_beta) - 1
+  ## simulate predictors x, even prob true_p|x, and outcome y|true_p
+  set.seed(.seed)
+  x <- cbind(1, matrix(rexp(n_pop * d, 1), ncol = d))
+  true_p <- plogis(as.vector(x %*% true_beta))
+  set.seed(.seed)
+  y <- rbinom(n_pop, 1, true_p)
+  ## calculate predictions p_hat|x
+  p_hat <- plogis(as.vector(x %*% beta_hat))
+  if (isTRUE(.verbose)) {
+    msg <- cli::col_blue(
+      paste0(
+        "\tTrue prevalence: ", round(mean(true_p), 3),
+        "\n\tPrevalence implied by model: ", round(mean(p_hat), 3)
+      )
+    )
+    message(msg)
+  }
+
+  ## calculate true NB|y,p_hat
+  true_nb <- map_df(thresholds, ~ {
+    compute_nb(y = y, pred = p_hat, thr = .x)
+  })
+
+  output <- list(
+    y = y,
+    x = x,
+    p_hat = p_hat,
+    true_p = true_p,
+    thresholds = thresholds,
+    n_pop = n_pop,
+    true_nb = true_nb,
+    true_beta = true_beta,
+    beta_hat = beta_hat,
+    population_seed = .seed
+  )
+
+  return(output)
+}
+
+get_setting_sample_list <- function(events, n_sim, population_data, .setting_seed, .setting_label) {
+  sample_size <- ceiling(events / mean(population_data$true_p))
+  set.seed(.setting_seed)
+  sim_seeds <- sample(1:2e6, n_sim)
+
+  df_sample_list <- lapply(1:n_sim, function(j) {
+    .run_seed <- sim_seeds[j]
+    .run_label <- paste0(
+      .setting_label, "_", .setting_seed,
+      "-run", j, "_", .run_seed
+    )
+    set.seed(.run_seed)
+    sample_ix <- sample(population_data$n_pop, sample_size)
+    .df_sample <- data.frame(
+      outcomes = population_data$y[sample_ix],
+      model_predictions = population_data$p_hat[sample_ix],
+      setting_label = .setting_label,
+      simulation_run_label = .run_label,
+      .setting_seed = .setting_seed,
+      .run_seed = .run_seed,
+      .run_id = j
+    )
+    return(.df_sample)
+  })
+
+  return(df_sample_list)
+}
+
 #' Simulate DCA (Results' subsection 02)
-#' @param n_pop Population size
+#' @param population_data Output from `simulate_dca_population`
 #' @param thresholds DCA decision thresholds
-#' @param true_beta Vector of true beta coefficients that
-#' define the probability of the outcome
-#' @param beta_hat Vector of (fake) model coefficients
 #' @param events Expected number of events in DCA sample
 #' @param .seed RNG seed.
 #' @param raw_data Whether to return the raw data. Defaults to FALSE.
 #' @param .plot Whether to plot simulation. Defaults to FALSE.
 #' @param result_path If given, the simulation result will be written as a .tsv file to the specified path.
-#' @param .label If given, it will be appended to result as a "simulation_label" column.
+#' @param .run_label If given, it will be appended to result as a "simulation_label" column.
 #' @param .setting_label If given, it will be appended to result as a "setting_label" column.
 #' @param overwrite If TRUE, any existing file in `result_path` will be overwritten by a new simualtion.
 #' @param cores Number of cores for bayesDCA. Defaults to 1.
 #' @param .verbose If TRUE more info is printed.
-simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
-                         raw_data = FALSE, .plot = FALSE,
-                         result_path = NULL, .label = NULL,
-                         .setting_label = NULL,
-                         overwrite = FALSE, cores = 1, .verbose = TRUE) {
+run_dca_simulation <- function(df_sample,
+                               thresholds,
+                               true_nb,
+                               true_prevalence,
+                               raw_data = FALSE, .plot = FALSE,
+                               result_path = NULL, .run_label = NULL,
+                               .setting_label = NULL,
+                               overwrite = FALSE, cores = 1, .verbose = FALSE) {
   if (!is.null(result_path)) {
     if (file.exists(result_path) && isFALSE(overwrite)) {
       msg <- cli::col_red(paste0(
@@ -278,11 +393,7 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
       message(msg)
       output <- list(
         result = read_tsv(result_path, show_col_types = FALSE),
-        true_beta = true_beta,
-        beta_hat = beta_hat,
-        thresholds = thresholds,
-        n_pop = n_pop,
-        expected_events = events
+        thresholds = thresholds
       )
       return(output)
     } else {
@@ -294,50 +405,13 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
     }
   }
 
-  thresholds <- validate_thresholds(thresholds = thresholds)
-  msg <- cli::col_blue(
-    paste0(
-      "Simulating DCA with .seed = ", .seed
-    )
-  )
-  message(msg)
-  set.seed(.seed)
-  d <- length(true_beta) - 1
-  ## simulate predictors x, even prob true_p|x, and outcome y|true_p
-  x <- cbind(1, matrix(rexp(n_pop * d, 1), ncol = d))
-  true_p <- plogis(as.vector(x %*% true_beta))
-  set.seed(.seed)
-  y <- rbinom(n_pop, 1, true_p)
-  ## calculate predictions p_hat|x
-  p_hat <- plogis(as.vector(x %*% beta_hat))
-  if (isTRUE(.verbose)) {
-    msg <- cli::col_blue(
-      paste0(
-        "True prevalence: ", round(mean(true_p), 3),
-        "\nPrevalence implied by model: ", round(mean(true_p), 3)
-      )
-    )
-    message(msg)
-  }
-
-  ## calculate true (approximate) NB|y,p_hat
-  true_nb <- map_df(thresholds, ~ {
-    compute_nb(y = y, pred = p_hat, thr = .x)
-  })
-
-  sample_size <- ceiling(events / mean(true_p))
-  set.seed(.seed)
-  sample_ix <- sample(1:n_pop, sample_size)
-  df_sample <- data.frame(
-    outcomes = y[sample_ix],
-    model_predictions = p_hat[sample_ix]
-  )
   dca_comparison <- compare_bdca_vs_rmda(
     dataset = df_sample,
     outcomes = "outcomes",
     predictor = "model_predictions",
     thresholds = thresholds,
-    bootstraps = 2e3,
+    show_informative_prior = TRUE,
+    bootstraps = 1e3,
     .quiet = TRUE,
     cores = cores
   )
@@ -354,14 +428,15 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
     dplyr::mutate(
       abs_error = abs(estimate - .true_nb),
       truth_within_interval = .true_nb >= .lower & .true_nb <= .upper,
+      true_prevalence = true_prevalence,
       .simulation_seed = .seed
     )
 
   if (!is.null(.setting_label)) {
-    result$setting_label <- .setting_label
+    result$setting_label <- unique(df_sample$setting_label)
   }
-  if (!is.null(.label)) {
-    result$simulation_label <- .label
+  if (!is.null(.run_label)) {
+    result$simulation_run_label <- unique(df_sample$simulation_run_label)
   }
 
 
@@ -374,11 +449,7 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
 
   output <- list(
     result = result,
-    true_beta = true_beta,
-    beta_hat = beta_hat,
-    thresholds = thresholds,
-    n_pop = n_pop,
-    expected_events = events
+    thresholds = thresholds
   )
 
   if (isTRUE(.plot)) {
@@ -398,10 +469,6 @@ simulate_dca <- function(n_pop, thresholds, true_beta, beta_hat, events, .seed,
   if (isTRUE(raw_data)) {
     output[["true_nb"]] <- true_nb
     output[["df_sample"]] <- df_sample
-    output[["true_p"]] <- true_p
-    output[["y"]] <- y
-    output[["x"]] <- x
-    output[["p_hat"]] <- p_hat
   }
 
   return(output)

@@ -34,7 +34,8 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
         outcomes = "day30",
         predictor = "phat1",
         thresholds = thresholds,
-        bootstraps = 2e3
+        bootstraps = 2e3,
+        show_informative_prior = FALSE
     ) +
         theme(legend.position = c(.7, .7)) +
         labs(title = NULL)
@@ -138,7 +139,7 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
 }
 
 run_simulation_study <- function(n_sim, thresholds, n_pop,
-                                 outdir, overwrite, .seed) {
+                                 outdir, overwrite, .seed, .verbose = FALSE) {
     # Simulation section ----
     thresholds <- validate_thresholds(thresholds = thresholds)
     dir.create(
@@ -151,7 +152,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
     n_settings <- length(simulation_settings)
     set.seed(.seed)
     settings_seeds <- sample(1:1000, n_settings)
-    simulation_results <- vector("list", n_settings * n_sim)
+    simulation_results <- vector("list", n_settings)
     results_ix <- 1
     for (i in 1:n_settings) {
         .setting <- simulation_settings[[i]]
@@ -161,34 +162,54 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
             paste0("Running simulation setting ", i, " with seed ", .setting_seed)
         )
         message(msg)
-        set.seed(.setting_seed)
-        sim_seeds <- sample(1:2e4, n_sim)
-        for (j in 1:n_sim) {
-            .run_seed <- sim_seeds[j]
-            msg <- cli::col_br_green(paste0(
-                "Run ", j, " with seed ", .run_seed, "\t(setting ", i, ")"
-            ))
-            message(msg)
-            .label <- paste0(
-                .setting_label, "_", .setting_seed,
-                "-run", j, "_", .run_seed
-            )
-            .simulation_output <- simulate_dca(
-                n_pop = n_pop,
-                thresholds = thresholds,
-                true_beta = .setting$true_beta,
-                beta_hat = .setting$beta_hat,
-                events = 100,
-                .seed = .run_seed,
-                .setting_label = .setting_label,
-                .label = .label,
-                result_path = str_path("{outdir}/tmp/{.label}.tsv"),
-                overwrite = overwrite,
-                .verbose = FALSE
-            )
-            simulation_results[[results_ix]] <- .simulation_output$result
-            results_ix <- results_ix + 1
-        }
+        # simulate population data
+        setting_population <- simulate_dca_population(
+            true_beta = .setting$true_beta,
+            beta_hat = .setting$beta_hat,
+            n_pop = n_pop,
+            thresholds = thresholds,
+            .seed = .setting_seed,
+            .verbose = .verbose
+        )
+        # simulate samples for DCA
+        df_sample_list <- get_setting_sample_list(
+            events = 100, # sample size corresponds to expected 100 events
+            n_sim = n_sim, # number of simulated samples
+            population_data = setting_population,
+            .setting_seed = .setting_seed,
+            .setting_label = .setting_label
+        )
+        .true_prevalence <- mean(setting_population$true_p)
+        .true_nb <- setting_population$true_nb
+        plan(multisession, workers = 3)
+        run_df <- furrr::future_map_dfr(
+            df_sample_list,
+            function(df_sample) {
+                .run_seed <- df_sample$.run_seed[1]
+                .run_label <- df_sample$simulation_run_label[1]
+                if (isTRUE(.verbose)) {
+                    msg <- cli::col_br_green(paste0(
+                        "Run ", df_sample$.run_id[1], " with run seed ", .run_seed, "\t(setting ", i, ")"
+                    ))
+                    message(msg)
+                }
+                .simulation_output <- run_dca_simulation(
+                    df_sample = df_sample,
+                    thresholds = thresholds,
+                    true_nb = .true_nb,
+                    true_prevalence = .true_prevalence,
+                    .setting_label = .setting_label,
+                    .run_label = .run_label,
+                    result_path = str_path("{outdir}/tmp/{.run_label}.tsv"),
+                    overwrite = overwrite,
+                    .verbose = .verbose
+                )
+                return(.simulation_output$result)
+            },
+            .options = furrr::furrr_options(seed = .setting_seed)
+        )
+        plan(sequential)
+        simulation_results[[i]] <- run_df
     }
 
     simulation_results <- as.data.frame(dplyr::bind_rows(simulation_results))
@@ -203,9 +224,13 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
 #' @import tidyverse
 plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed) {
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
-    .colors <- RColorBrewer::brewer.pal(3, "Dark2")
+    estimation_types <- unique(
+        simulation_results$.type
+    )
+    n_types <- length(estimation_types)
+    .colors <- RColorBrewer::brewer.pal(n_types + 1, "Dark2")
     names(.colors) <- c(
-        "True NB", "Frequentist", "Bayesian"
+        "True NB", estimation_types
     )
     .colors[".true_nb"] <- .colors[1]
 
@@ -228,12 +253,13 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # point estimates are nearly identical
     p1 <- df %>%
-        dplyr::filter(threshold %in% seq(0, 0.9, 0.1)) %>%
+        #dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
+	dplyr::filter(threshold <= 0.5) %>%
         dplyr::select(
-            threshold, setting_label, simulation_label, .type, estimate, .true_nb
+            threshold, setting_label, simulation_run_label, .type, estimate, .true_nb
         ) %>%
         tidyr::pivot_wider(names_from = .type, values_from = estimate) %>%
-        tidyr::pivot_longer(cols = c(.true_nb, Frequentist, Bayesian)) %>%
+        tidyr::pivot_longer(cols = dplyr::any_of(c(".true_nb", estimation_types))) %>%
         dplyr::mutate(
             name = ifelse(
                 name == ".true_nb",
@@ -242,7 +268,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             ),
             name = forcats::fct_relevel(
                 name,
-                "True NB", "Bayesian", "Frequentist"
+                "True NB", sort(estimation_types)
             )
         ) %>%
         ggplot2::ggplot(ggplot2::aes(factor(threshold), value)) +
@@ -254,13 +280,41 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             linewidth = 0.5
         ) +
         ggplot2::geom_boxplot(
+            data = . %>%
+                dplyr::filter(
+                    stringr::str_detect(
+                        stringr::str_to_lower(name),
+                        "true nb",
+                        negate = TRUE
+                    )
+                ),
             ggplot2::aes(color = name),
-            position = ggplot2::position_dodge(width = .8),
-            width = .5, lwd = 0.55
+            position = ggplot2::position_dodge(width = .75),
+            width = .5, lwd = 0.55,
+            show.legend = FALSE
+        ) +
+        ggplot2::geom_segment(
+            data = . %>%
+                dplyr::filter(
+                    stringr::str_detect(
+                        stringr::str_to_lower(name),
+                        "true nb",
+                        negate = FALSE
+                    )
+                ),
+            ggplot2::aes(
+                y = value, yend = value,
+                x = as.numeric(factor(threshold)) - 0.2,
+                xend = as.numeric(factor(threshold)) + 0.2,
+                color = name
+            ),
+            linewidth = 1.2
         ) +
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
-        ggplot2::scale_x_discrete(breaks = scales::pretty_breaks(10)) +
+        ggplot2::scale_x_discrete(
+            breaks = factor(unique(df$threshold))
+        ) +
         ggplot2::theme(
             legend.position = c(.2, .85)
         ) +
@@ -273,12 +327,13 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/point_estimates_distributions.png"),
         p1,
-        width = 12, height = 6.5, dpi = 600
+        width = 15, height = 6.5, dpi = 600
     )
 
     # 95% intervals coverage
 
     p2 <- df %>%
+	dplyr::filter(threshold <= 0.5) %>%
         dplyr::group_by(threshold, .type, setting_label) %>%
         dplyr::summarise(
             cov = mean(truth_within_interval),
@@ -287,7 +342,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         dplyr::mutate(
             .type = factor(
                 .type,
-                levels = c("Bayesian", "Frequentist")
+                levels = sort(estimation_types)
             )
         ) %>%
         dplyr::arrange(.type) %>%
@@ -313,13 +368,14 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             limits = c(0.75, 1)
         ) +
         ggplot2::scale_color_manual(values = .colors) +
-        ggplot2::scale_shape_manual(values = c(19, 19)) +
+        ggplot2::scale_shape_manual(values = rep(19, n_types)) +
         ggplot2::scale_x_discrete(
-            breaks = scales::pretty_breaks(10)
+            breaks = factor(unique(df$threshold))
         ) +
-        ggplot2::scale_size_manual(values = c(2.5, 1.25)) +
+        ggplot2::scale_size_manual(values = c(1, 2 / 3, 1 / 3) * 3) +
         ggplot2::theme(
-            legend.position = c(.12, .135)
+            legend.position = c(.12, .135),
+            axis.text.x = ggplot2::element_text(size = 10)
         ) +
         ggplot2::labs(
             x = "Decision threshold",
@@ -333,10 +389,125 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/empirical_coverage.png"),
         p2,
-        width = 9, height = 5.5, dpi = 600
+        width = 15, height = 5.5, dpi = 600
     )
 
-    return(list(point_estimates = p1, coverage = p2))
+    # absolute error
+    p3 <- df %>%
+        #dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
+	dplyr::filter(threshold <= 0.5) %>%
+        dplyr::mutate(abs_error = estimate - .true_nb) %>%
+        dplyr::select(
+            threshold, setting_label, simulation_run_label, .type, abs_error
+        ) %>%
+        tidyr::pivot_wider(names_from = .type, values_from = abs_error) %>%
+        tidyr::pivot_longer(cols = dplyr::any_of(estimation_types)) %>%
+        dplyr::mutate(
+            name = factor(
+                as.character(name),
+                levels = sort(estimation_types)
+            )
+        ) %>%
+        ggplot2::ggplot(ggplot2::aes(factor(threshold), value)) +
+        ggplot2::geom_hline(
+            yintercept = 0,
+            lty = 2,
+            alpha = 0.7,
+            color = "gray40",
+            linewidth = 0.5
+        ) +
+        ggplot2::geom_boxplot(
+            data = . %>%
+                dplyr::filter(
+                    stringr::str_detect(
+                        stringr::str_to_lower(name),
+                        "true nb",
+                        negate = TRUE
+                    )
+                ),
+            ggplot2::aes(color = name),
+            position = ggplot2::position_dodge(width = .75),
+            width = .5, lwd = 0.55
+        ) +
+        ggplot2::facet_wrap(~setting_label, scales = "free_y") +
+        ggplot2::scale_color_manual(values = .colors) +
+        ggplot2::scale_x_discrete(
+            breaks = factor(unique(df$threshold))
+        ) +
+        ggplot2::theme(
+            legend.position = "top"
+        ) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Estimated NB - True NB",
+            color = NULL
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/point_estimates_error.png"),
+        p3,
+        width = 15, height = 6.5, dpi = 600
+    )
+
+    # ci width
+    p4 <- df %>%
+        #dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
+	dplyr::filter(threshold <= 0.5) %>%
+        dplyr::mutate(ci_width = .upper - .lower) %>%
+        dplyr::select(
+            threshold, setting_label, simulation_run_label, .type, ci_width
+        ) %>%
+        tidyr::pivot_wider(names_from = .type, values_from = ci_width) %>%
+        tidyr::pivot_longer(cols = dplyr::any_of(estimation_types)) %>%
+        dplyr::mutate(
+            name = factor(
+                as.character(name),
+                levels = sort(estimation_types)
+            )
+        ) %>%
+        ggplot2::ggplot(ggplot2::aes(factor(threshold), value)) +
+        ggplot2::geom_hline(
+            yintercept = 0,
+            lty = 2,
+            alpha = 0.7,
+            color = "gray40",
+            linewidth = 0.5
+        ) +
+        ggplot2::geom_boxplot(
+            data = . %>%
+                dplyr::filter(
+                    stringr::str_detect(
+                        stringr::str_to_lower(name),
+                        "true nb",
+                        negate = TRUE
+                    )
+                ),
+            ggplot2::aes(color = name),
+            position = ggplot2::position_dodge(width = .75),
+            width = .5, lwd = 0.55
+        ) +
+        ggplot2::facet_wrap(~setting_label, scales = "free_y") +
+        ggplot2::scale_color_manual(values = .colors) +
+        ggplot2::scale_x_discrete(
+            breaks = factor(unique(df$threshold))
+        ) +
+        ggplot2::theme(
+            legend.position = "top"
+        ) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "95% Uncertainty interval width",
+            color = NULL
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/ci_width.png"),
+        p4,
+        width = 15, height = 6.5, dpi = 600
+    )
+
+
+    return(list(point_estimates = p1, coverage = p2, abs_error = p3, ci_width = p4))
 }
 
 #' Run Baysian DCA case study (Results' subsection 03)

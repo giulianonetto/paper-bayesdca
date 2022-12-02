@@ -12,7 +12,7 @@ options(tidyverse.quiet = TRUE)
 tar_option_set(
   packages = c(
     "tidyverse", "bayesDCA", "rmda",
-    "dcurves", "OptimalCutpoints"
+    "dcurves", "OptimalCutpoints", "furrr"
   )
 )
 
@@ -30,12 +30,13 @@ list(
   tar_target(
     name = results_02_subsection,
     command = run_simulation_study(
-      n_sim = 200,
-      thresholds = seq(0, 0.5, 0.05),
-      n_pop = 1e6,
+      n_sim = 500,
+      thresholds = c(0, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1),
+      n_pop = 2e6,
       outdir = simulation_dir,
       overwrite = FALSE,
-      .seed = .seed
+      .seed = .seed,
+      .verbose = TRUE
     )
   ),
   tar_target(
