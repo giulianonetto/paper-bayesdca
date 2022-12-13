@@ -1,0 +1,56 @@
+model{
+	for (i in 1:N){
+		n[i]<-ncases[i]+ncontrols[i]
+		ncases[i] ~ dbin(prev[i],n[i])
+		tp[i] ~ dbin(sens[i],ncases[i])
+		tn[i] ~ dbin(spec[i],ncontrols[i])
+
+		logits[i,1:3] ~ dmnorm(mu[1:3],T[1:3,1:3])
+
+		prev[i] <- exp(logits[i,1])/(1+exp(logits[i,1]))
+		sens[i] <- exp(logits[i,2])/(1+exp(logits[i,2]))
+		spec[i] <- exp(logits[i,3])/(1+exp(logits[i,3]))
+	}
+
+	#compute summary statistics
+	pooledprev <- exp(mu[1])/(1+exp(mu[1]))
+	pooledsens <- exp(mu[2])/(1+exp(mu[2]))
+	pooledspec <- exp(mu[3])/(1+exp(mu[3]))
+
+	tau[1:3,1:3] <- inverse(T[1:3,1:3])
+	tau2prev<- tau[1,1]
+	tau2sens<- tau[2,2]
+	tau2spec<- tau[3,3]
+	cov1 <- tau[1,2]
+	corr1 <- cov1/sqrt(tau2sens*tau2prev)
+	cov2 <- tau[1,3]
+	corr2 <- cov2/sqrt(tau2spec*tau2prev)
+	cov3 <- tau[2,3]
+	corr3 <- cov3/sqrt(tau2spec*tau2sens)
+
+	t<-0.2
+
+	pooledNB<-pooledsens*pooledprev-(1-pooledspec)*(1-pooledprev)*t/(1-t)
+	pooledNB_TA<-pooledprev-(1-pooledprev)*t/(1-t)
+
+	pooledNB_p<-pooledsens*.5-(1-pooledspec)*(1-.5)*t/(1-t)
+	pooledNB_TA_p<-.5-(1-.5)*t/(1-t)
+
+	# priors
+	mu[1:3] ~ dmnorm(mn[1:3],prec[1:3,1:3])
+	T[1:3,1:3] ~ dwish(R[1:3,1:3],3)
+
+	# Predict new triade of sens and spec and prev
+
+	logitsnew[1:3] ~ dmnorm(mu[1:3],T[1:3,1:3])
+	prevnew<-exp(logitsnew[1])/(1+exp(logitsnew[1]))
+	sensnew<-exp(logitsnew[2])/(1+exp(logitsnew[2]))
+	specnew<-exp(logitsnew[3])/(1+exp(logitsnew[3]))
+	NBnew<-sensnew*prevnew-(1-specnew)*(1-prevnew)*t/(1-t)
+	NBnew_TA<-prevnew-(1-prevnew)*t/(1-t)
+	NBnew_p<-sensnew*.5-(1-specnew)*(1-.5)*t/(1-t)
+	NBnew_TA_p<-.5-(1-.5)*t/(1-t)
+
+	probharmful<-1-equals(max(max(NBnew,NBnew_TA),0), NBnew)
+	probharmful_p<-1-equals(max(max(NBnew_p,NBnew_TA_p),0), NBnew_p)
+}
