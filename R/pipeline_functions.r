@@ -760,3 +760,49 @@ plot_case_study_results <- function(fit, outdir) {
     )
     return(output)
 }
+
+run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
+                                      outdir, overwrite, .seed,
+                                      .workers = 2, .verbose = FALSE) {
+    simulation_results_file <- str_path("{outdir}/simulation_results_surv.tsv")
+    if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
+        msg <- cli::col_br_red("Simulation results (survival) exist and will not be overwritten")
+        message(msg)
+        simulation_results <- readr::read_tsv(
+            simulation_results_file,
+            show_col_types = FALSE
+        )
+        return(simulation_results)
+    }
+    # Simulation section ----
+    thresholds <- validate_thresholds(thresholds = thresholds)
+    dir.create(
+        outdir,
+        showWarnings = FALSE,
+        recursive = TRUE
+    )
+
+    simulation_settings <- get_simulation_settings_surv()
+    n_settings <- length(simulation_settings)
+    set.seed(.seed)
+    settings_seeds <- sample(1:1000, n_settings)
+    simulation_results <- vector("list", n_settings)
+    results_ix <- 1
+    for (i in 1:n_settings) {
+        .setting <- simulation_settings[[i]]
+        .setting_label <- names(simulation_settings)[i]
+        .setting_seed <- settings_seeds[i]
+        msg <- cli::col_br_magenta(
+            paste0("Running survival simulation setting ", i, " with seed ", .setting_seed)
+        )
+        message(msg)
+        # simulate population data
+        setting_population <- simulate_dca_population_surv(
+            sim_setting = .setting,
+            n_pop = n_pop,
+            thresholds = thresholds,
+            .seed = .setting_seed,
+            .verbose = .verbose
+        )
+    }
+}

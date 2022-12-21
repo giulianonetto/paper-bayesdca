@@ -552,3 +552,128 @@ test_sim_setting <- function(.sim, n = 1e5, .return = FALSE) {
     return(list(p = p, phat = phat, y = y))
   }
 }
+
+#' Get simulation survival settings (Results' subsection 3)
+get_simulation_settings_surv <- function() {
+  simulation_settings <- list(
+    # AUC 0.65, prev 0.01 vs 0.0096
+    sim1 = list(
+      surv_formula = "log(1.4)*x1 + log(0.6)*x2",
+      true_beta = c(log(1.4), log(0.6)),
+      beta_hat = c(log(1.4), log(0.6)) * 1.5,
+      surv_shape = 1,
+      surv_scale = 1,
+      censor_shape = 1,
+      censor_scale = 0.125,
+      sample_size = 1000,
+      concord = 0.65,
+      events = 107,
+      median_surv = 0.7
+    ),
+    # AUC 0.65, prev 0.05 vs 0.06
+    sim2 = list(
+      surv_formula = "log(3)*x1 + log(1/3)*x2",
+      true_beta = c(log(3), log(1 / 3)),
+      beta_hat = c(log(3), log(1 / 3)) * 1.5,
+      surv_shape = 1,
+      surv_scale = 0.3,
+      censor_shape = 1,
+      censor_scale = 0.3,
+      sample_size = 1000,
+      concord = 0.85,
+      events = 101,
+      median_surv = 0.88
+    )
+  )
+
+  return(simulation_settings)
+}
+
+#' Generate survival data using simstudy package
+#'
+
+gen_surv_data <- function(surv_formula,
+                          surv_shape,
+                          surv_scale,
+                          censor_shape,
+                          censor_scale,
+                          sample_size) {
+  import::from(magrittr, `%>%`)
+  def_x <- simstudy::defData(
+    varname = "x1",
+    dist = "exponential",
+    formula = 1
+  ) %>%
+    simstudy::defData(
+      varname = "x2",
+      dist = "exponential",
+      formula = 1
+    )
+  def_surv <- simstudy::defSurv(
+    varname = "survTime",
+    formula = surv_formula,
+    scale = surv_shape,
+    shape = surv_scale
+  ) %>%
+    simstudy::defSurv(
+      varname = "censorTime",
+      shape = censor_shape,
+      scale = censor_scale
+    )
+
+  surv_data <- simstudy::genData(
+    n = sample_size,
+    def_x
+  ) %>%
+    simstudy::genSurv(
+      def_surv,
+      timeName = "obsTime",
+      censorName = "censorTime",
+      eventName = "status",
+      keepEvents = TRUE
+    )
+  return(surv_data)
+}
+
+
+#' Simulate population data for DCA simulation (Results's subsection 02)
+#'
+simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed, .verbose = FALSE) {
+  thresholds <- validate_thresholds(thresholds = thresholds)
+  msg <- cli::col_blue(
+    paste0(
+      "Simulating population DCA data with population seed = ", .seed
+    )
+  )
+  message(msg)
+
+  if (isTRUE(.verbose)) {
+    msg <- cli::col_blue(
+      paste0(
+        "\tTrue prevalence: ", round(mean(true_p), 3),
+        "\n\tPrevalence implied by model: ", round(mean(p_hat), 3)
+      )
+    )
+    message(msg)
+  }
+
+  ## calculate true NB|y,p_hat
+  true_nb <- map_df(thresholds, ~ {
+    compute_nb(y = y, pred = p_hat, thr = .x)
+  })
+
+  output <- list(
+    y = y,
+    x = x,
+    p_hat = p_hat,
+    true_p = true_p,
+    thresholds = thresholds,
+    n_pop = n_pop,
+    true_nb = true_nb,
+    true_beta = true_beta,
+    beta_hat = beta_hat,
+    population_seed = .seed
+  )
+
+  return(output)
+}
