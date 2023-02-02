@@ -238,9 +238,16 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
 #' @import tidyverse
 plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed) {
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
-    estimation_types <- unique(
-        simulation_results$.type
+    # estimation_types <- unique(
+    #     simulation_results$.type
+    # )
+    estimation_types <- c(
+        "Bayesian",
+        "Frequentist"
     )
+    simulation_results <- simulation_results[
+        simulation_results$.type %in% estimation_types,
+    ]
     n_types <- length(estimation_types)
     .colors <- RColorBrewer::brewer.pal(n_types + 1, "Dark2")
     names(.colors) <- c(
@@ -551,15 +558,17 @@ run_case_study <- function(thresholds, .seed) {
             model_predictions := pred
         )
 
-    ## noise predictor
-    set.seed(.seed)
-    z <- rnorm(nrow(d), mean = 0, sd = 2)
+    soc_test_se <- 0.81
+    soc_test_sp <- 0.88
 
+    set.seed(.seed)
     d <- d %>%
+        rowwise() %>%
         dplyr::mutate(
-            binary_test = as.numeric(model_predictions > 0.5),
-            model_predictions2 = plogis(
-                qlogis(model_predictions) + log(5) * z
+            binary_test = ifelse(
+                outcomes == 1,
+                rbinom(n = 1, size = 1, soc_test_se),
+                rbinom(n = 1, size = 1, 1 - soc_test_sp)
             )
         )
 
@@ -581,8 +590,7 @@ plot_case_study_results <- function(fit, outdir) {
 
     .labels <- list(
         "model_predictions" = "ADNEX",
-        "binary_test" = "Classifier/Binary test",
-        "model_predictions2" = "ADNEX updated"
+        "binary_test" = "Standard of Care test"
     )
     dca_plot <- bayesDCA:::plot.BayesDCAList(
         fit,
@@ -664,7 +672,8 @@ plot_case_study_results <- function(fit, outdir) {
     p3 <- plots_best$prob_better +
         ggplot2::labs(tag = "C")
     p4 <- plots_best$delta +
-        ggplot2::labs(tag = "D")
+        ggplot2::labs(tag = "D") +
+        coord_cartesian(ylim = c(-0.085, 0.085))
 
     posterior_iterrogation_plots <- (
         (p1 / p2) | (p3 / p4)
@@ -691,7 +700,7 @@ plot_case_study_results <- function(fit, outdir) {
                 labels = .labels[1:2]
             ) +
                 ggplot2::coord_cartesian(ylim = c(-.1, .1)) +
-                ggplot2::labs(subtitle = "ADNEX against Classifier", tag = "A")
+                ggplot2::labs(subtitle = "Net benefit differences across all thresholds", tag = "A")
         })
     })
     nb1 <- fit$draws$net_benefit[[strategies[1]]]
@@ -701,7 +710,7 @@ plot_case_study_results <- function(fit, outdir) {
     .delta_41 <- .delta[, ix_41]
 
     prob_superior_any <- round(mean(.delta_41 > 0.0) * 100)
-    prob_superior_mcid <- round(mean(.delta_41 > 0.025) * 100)
+    prob_superior_mcid <- round(mean(.delta_41 > 0.01) * 100)
     suppressMessages({
         suppressWarnings({
             pairwise_41_plot <- data.frame(
@@ -711,13 +720,16 @@ plot_case_study_results <- function(fit, outdir) {
                 ggdist::stat_halfeye(
                     slab_color = "gray45",
                     ggplot2::aes(
-                        fill = ggplot2::after_stat(x > 0.025)
-                    )
+                        fill = ggplot2::after_stat(x > 0)
+                    ),
+                    interval_size_range = c(1.5, 3),
+                    normalize = "none"
                 ) +
+                ggplot2::scale_y_continuous(limits = c(0, 50)) +
                 ggplot2::labs(
                     x = latex2exp::TeX("$\\Delta_{NB}$"),
                     y = "Posterior density", tag = "B",
-                    subtitle = "ADNEX against Classifier at threshold 41%"
+                    subtitle = "Difference at 41% threshold"
                 ) +
                 ggplot2::guides(fill = "none") +
                 ggplot2::scale_fill_manual(
@@ -726,17 +738,51 @@ plot_case_study_results <- function(fit, outdir) {
                 ggplot2::geom_vline(
                     xintercept = 0,
                     lty = 2,
-                    color = "gray45"
+                    color = "gray30"
+                ) +
+                ggplot2::geom_segment(
+                    x = 1e-3, y = 45,
+                    xend = .03, yend = 45,
+                    lineend = "round",
+                    linejoin = "round",
+                    linewidth = 1.5,
+                    arrow = arrow(length = unit(0.15, "inches")),
+                    colour = "gray30"
+                ) +
+                ggplot2::geom_segment(
+                    x = -1e-3, y = 45,
+                    xend = -.03, yend = 45,
+                    lineend = "round",
+                    linejoin = "round",
+                    linewidth = 1.5,
+                    arrow = arrow(length = unit(0.15, "inches")),
+                    colour = "gray30" # Also accepts "red", "blue' etc
                 ) +
                 ggplot2::annotate(
                     "text",
-                    x = .039, y = .55, size = 3.8, color = "#4788c4",
-                    label = latex2exp::TeX("$P(\\Delta_{NB} > 0.025) = 17\\%$")
+                    x = .025, y = 32.5, size = 4, color = "#4788c4",
+                    label = latex2exp::TeX("$P(\\Delta_{NB} > 0) = 63$%")
+                ) +
+                ggplot2::annotate(
+                    "text",
+                    hjust = 0, fontface = "bold",
+                    x = 0.0025, y = 48, size = 4, color = "gray30",
+                    label = "Favors ADNEX"
+                ) +
+                ggplot2::annotate(
+                    "text",
+                    hjust = 1, fontface = "bold",
+                    x = -0.0025, y = 48, size = 4, color = "gray30",
+                    label = "Favors SoC"
                 )
         })
     })
 
-    pairwise_plot <- pairwise_delta_plot | pairwise_41_plot
+    pairwise_plot <- (pairwise_delta_plot | pairwise_41_plot) +
+        patchwork::plot_annotation(
+            title = "ADNEX versus Standard of Care test",
+            theme = ggplot2::theme(plot.title = element_text(hjust = 0.5))
+        )
     ggplot2::ggsave(
         str_path("{outdir}/pairwise-41.png"),
         pairwise_plot,
@@ -802,7 +848,57 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
             n_pop = n_pop,
             thresholds = thresholds,
             .seed = .setting_seed,
+            pred_time = 1,
             .verbose = .verbose
         )
+        # simulate samples for DCA
+        df_sample_list <- get_setting_sample_list_surv(
+            events = 100, # sample size corresponds to expected 100 events
+            n_sim = n_sim, # number of simulated samples
+            population_data = setting_population,
+            .setting_seed = .setting_seed,
+            .setting_label = .setting_label
+        )
+        .true_incidence <- mean(setting_population$df_pop$survTime >= 1)
+        .true_nb <- setting_population$true_nb
+        plan(multisession, workers = .workers)
+        run_df <- furrr::future_map_dfr(
+            df_sample_list,
+            function(df_sample) {
+                .run_seed <- df_sample$.run_seed[1]
+                .run_label <- df_sample$simulation_run_label[1]
+                if (isTRUE(.verbose)) {
+                    msg <- cli::col_br_green(paste0(
+                        "Run ", df_sample$.run_id[1], " with run seed ", .run_seed, "\t(setting ", i, ")"
+                    ))
+                    message(msg)
+                }
+                outdir <- "output/testing"
+                .simulation_output <- run_dca_simulation_surv(
+                    df_sample = df_sample,
+                    thresholds = thresholds,
+                    true_nb = .true_nb,
+                    true_incidence = .true_incidence,
+                    .cutpoints = c(0, .3, .6, .9),
+                    .setting_label = .setting_label,
+                    .run_label = .run_label,
+                    result_path = str_path("{outdir}/tmp-surv/{.run_label}.tsv"),
+                    overwrite = overwrite,
+                    .verbose = .verbose
+                )
+                return(.simulation_output$result)
+            },
+            .options = furrr::furrr_options(seed = .setting_seed)
+        )
+        plan(sequential)
+        simulation_results[[i]] <- run_df
     }
+
+    simulation_results <- as.data.frame(dplyr::bind_rows(simulation_results))
+    readr::write_tsv(
+        simulation_results,
+        simulation_results_file
+    )
+
+    return(simulation_results)
 }

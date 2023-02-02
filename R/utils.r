@@ -167,6 +167,102 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
   return(res_all)
 }
 
+#' Compare DCA (Survival) from `bayesDCa` and `dcurves` packages
+#'
+#' @param dataset `data.frame` with outcomes and predictor of outcome
+#' @param outcomes outcome variable (character string with column name)
+#' @param predictor predicted probabilities (character string with column name)
+#' @param pred_time Prediction time horizon
+#' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
+#' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
+#' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
+#' @param thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
+#' @importFrom magrittr %>%
+compare_bdca_vs_dcurves <- function(dataset, outcomes,
+                                    predictor, thresholds,
+                                    pred_time,
+                                    .cutpoints,
+                                    treat_all_rmda = FALSE, bootstraps = 500,
+                                    refresh = 0, .quiet = FALSE, cores = 1) {
+  df <- data.frame(
+    outcomes = dataset[[outcomes]],
+    predictor = dataset[[predictor]]
+  )
+  thresholds <- validate_thresholds(thresholds = thresholds)
+  # Estimate decision curves
+  if (isFALSE(.quiet)) {
+    msg <- cli::col_blue("Estimating DCA with bayesDCA (default)")
+    message(msg)
+  }
+  bdca_fit <- bayesDCA::dca_surv(
+    df,
+    thresholds = thresholds,
+    prediction_time = pred_time,
+    refresh = refresh,
+    cores = cores,
+    cutpoints = .cutpoints # TODO: figure these out
+  )
+
+  if (isFALSE(.quiet)) {
+    msg <- cli::col_blue("Estimating DCA with dcurves")
+    message(msg)
+  }
+  dcurves_fit <- dcurves::dca(
+    outcomes ~ predictor,
+    data = df,
+    time = pred_time,
+    thresholds = thresholds
+  )
+
+  # get results into standardized data.frames
+  if (isFALSE(.quiet)) {
+    msg <- cli::col_blue("Plotting results")
+    message(msg)
+  }
+  res_bdca <- dplyr::bind_rows(
+    bdca_fit$summary$net_benefit %>%
+      dplyr::select(
+        threshold, estimate,
+        .lower := `2.5%`, .upper := `97.5%`
+      ) %>%
+      dplyr::mutate(
+        .type = "Bayesian",
+        strategy = "Model-based decisions"
+      ),
+    bdca_fit$summary$treat_all %>%
+      dplyr::select(
+        threshold, estimate,
+        .lower := `2.5%`, .upper := `97.5%`
+      ) %>%
+      dplyr::mutate(
+        .type = "Bayesian",
+        strategy = "Treat all"
+      )
+  )
+
+  res_dcurves <- dcurves_fit$dca %>%
+    dplyr::filter(variable %in% c("all", "predictor")) %>%
+    dplyr::mutate(
+      strategy = ifelse(
+        variable == "all",
+        "Treat all",
+        "Model-based decisions"
+      ),
+      .type = "Frequentist",
+      .lower := NA_real_,
+      .upper := NA_real_,
+    ) %>%
+    dplyr::select(
+      threshold,
+      estimate := net_benefit,
+      .lower, .upper,
+      .type, strategy
+    )
+
+  res_all <- bind_rows(res_bdca, res_dcurves)
+  return(res_all)
+}
+
 #' Plot bayesDCA vs rmda comparison
 #'
 #' Plots DCA from `bayesDCa` and `rmda` packages
@@ -286,6 +382,22 @@ compute_nb <- function(y, pred, thr) {
   )
 }
 
+#' Compute net benefit for given threshold
+#' @param surv_time The true simulated survival times
+#' @param surv_hat Predicted 1-year event probability from example model being validated
+#' @param thr Decision threshold
+#' @param pred_time Prediction time horizon
+compute_nb_surv <- function(surv_time, p_hat, thr, pred_time = 1) {
+  pos <- mean(p_hat >= thr) # prob of positive prediction
+  cond_surv <- mean(surv_time[p_hat >= thr] >= pred_time) # conditional survival
+  tibble::tibble(
+    .thr = thr,
+    positivity = pos,
+    conditional_survival = cond_surv,
+    nb = (1 - cond_surv) * pos - cond_surv * pos * (thr / (1 - thr))
+  )
+}
+
 #' Simulate population data for DCA simulation (Results's subsection 02)
 #'
 simulate_dca_population <- function(true_beta, beta_hat, n_pop, thresholds, .seed, .verbose = FALSE) {
@@ -364,7 +476,38 @@ get_setting_sample_list <- function(events, n_sim, population_data, .setting_see
   return(df_sample_list)
 }
 
-#' Simulate DCA (Results' subsection 02)
+get_setting_sample_list_surv <- function(events, n_sim, population_data, .setting_seed, .setting_label) {
+  sample_size <- ceiling(events / mean(population_data$df_pop$status))
+  set.seed(.setting_seed)
+  sim_seeds <- sample(1:2e6, n_sim)
+
+  df_sample_list <- lapply(1:n_sim, function(j) {
+    .run_seed <- sim_seeds[j]
+    .run_label <- paste0(
+      .setting_label, "_", .setting_seed,
+      "-run", j, "_", .run_seed
+    )
+    set.seed(.run_seed)
+    sample_ix <- sample(population_data$n_pop, sample_size)
+    d <- population_data$df_pop[sample_ix, ]
+    .df_sample <- data.frame(
+      survTime = d$survTime,
+      obsTime = d$obsTime,
+      status = d$status,
+      model_predictions = d$p_hat,
+      setting_label = .setting_label,
+      simulation_run_label = .run_label,
+      .setting_seed = .setting_seed,
+      .run_seed = .run_seed,
+      .run_id = j
+    )
+    return(.df_sample)
+  })
+
+  return(df_sample_list)
+}
+
+#' Simulate DCA (Results' subsection 2.5.1)
 #' @param population_data Output from `simulate_dca_population`
 #' @param thresholds DCA decision thresholds
 #' @param events Expected number of events in DCA sample
@@ -460,6 +603,172 @@ run_dca_simulation <- function(df_sample,
         data = true_nb,
         aes(x = .thr, y = nb, group = 1),
         color = "red", inherit.aes = FALSE
+      ) +
+      theme(legend.position = c(.7, .7)) +
+      ggplot2::scale_y_continuous(expand = c(.275, 0))
+    output[["plot"]] <- sim_plot
+  }
+
+  if (isTRUE(raw_data)) {
+    output[["true_nb"]] <- true_nb
+    output[["df_sample"]] <- df_sample
+  }
+
+  return(output)
+}
+
+#' Simulate DCA Surv (Results' subsection 2.5.2)
+#' @param df_sample Output from `simulate_dca_population`
+#' @param thresholds DCA decision thresholds
+#' @param true_nb Expected number of events in DCA sample
+#' @param true_incidence
+#' @param .seed RNG seed.
+#' @param raw_data Whether to return the raw data. Defaults to FALSE.
+#' @param .plot Whether to plot simulation. Defaults to FALSE.
+#' @param result_path If given, the simulation result will be written as a .tsv file to the specified path.
+#' @param .run_label If given, it will be appended to result as a "simulation_label" column.
+#' @param .setting_label If given, it will be appended to result as a "setting_label" column.
+#' @param overwrite If TRUE, any existing file in `result_path` will be overwritten by a new simualtion.
+#' @param cores Number of cores for bayesDCA. Defaults to 1.
+#' @param .verbose If TRUE more info is printed.
+run_dca_simulation_surv <- function(df_sample,
+                                    thresholds,
+                                    true_nb,
+                                    true_incidence,
+                                    .cutpoints,
+                                    raw_data = FALSE, .plot = FALSE,
+                                    result_path = NULL, .run_label = NULL,
+                                    .setting_label = NULL,
+                                    overwrite = FALSE, cores = 1, .verbose = FALSE) {
+  if (!is.null(result_path)) {
+    if (file.exists(result_path) && isFALSE(overwrite)) {
+      msg <- cli::col_red(paste0(
+        "Skipping simulation, cannot overwrite: ", result_path
+      ))
+      message(msg)
+      output <- list(
+        result = read_tsv(result_path, show_col_types = FALSE),
+        thresholds = thresholds
+      )
+      return(output)
+    } else {
+      dir.create(
+        dirname(result_path),
+        showWarnings = FALSE,
+        recursive = TRUE
+      )
+    }
+  }
+
+  dca_comparison <- df_sample %>%
+    dplyr::filter(obsTime > 0) %>%
+    dplyr::mutate(
+      outcomes = survival::Surv(obsTime, status),
+    ) %>%
+    dplyr::select(outcomes, model_predictions) %>%
+    compare_bdca_vs_dcurves(
+      outcomes = "outcomes",
+      predictor = "model_predictions",
+      thresholds = thresholds,
+      .cutpoints = .cutpoints,
+      pred_time = 1,
+      .quiet = TRUE,
+      cores = cores
+    )
+
+  result <- left_join(
+    dca_comparison,
+    true_nb %>%
+      dplyr::select(
+        threshold := .thr,
+        .true_nb := nb
+      ),
+    by = "threshold"
+  ) %>%
+    dplyr::mutate(
+      .true_nb = ifelse(
+        strategy == "Treat all", NA_real_, .true_nb
+      ),
+      abs_error = abs(estimate - .true_nb),
+      truth_within_interval = .true_nb >= .lower & .true_nb <= .upper,
+      true_incidence = true_incidence,
+      .simulation_seed = .seed
+    )
+
+  if (!is.null(.setting_label)) {
+    result$setting_label <- unique(df_sample$setting_label)
+  }
+  if (!is.null(.run_label)) {
+    result$simulation_run_label <- unique(df_sample$simulation_run_label)
+  }
+
+
+  if (!is.null(result_path)) {
+    write_tsv(
+      result,
+      result_path,
+    )
+  }
+
+  output <- list(
+    result = result,
+    thresholds = thresholds
+  )
+
+  if (isTRUE(.plot)) {
+    .cols <- c(
+      "Model-based decisions.Bayesian" = "#1B9E77",
+      "Model-based decisions.Frequentist" = "red",
+      "Treat all.Bayesian" = "gray40"
+    )
+    .labels <- c(
+      "Model-based decisions.Bayesian" = "Model-based decisions (Bayesian)",
+      "Model-based decisions.Frequentist" = "Model-based decisions (Frequentist)",
+      "Treat all.Bayesian" = "Treat all"
+    )
+
+    sim_plot <- dca_comparison %>%
+      dplyr::filter(
+        !(strategy == "Treat all" & .type == "Frequentist")
+      ) %>%
+      ggplot2::ggplot(
+        ggplot2::aes(
+          x = threshold, y = estimate,
+          ymin = .lower, ymax = .upper,
+          color = interaction(strategy, .type),
+          fill = interaction(strategy, .type)
+        )
+      ) +
+      ggplot2::geom_ribbon(alpha = 0.2, aes(color = NULL)) +
+      ggplot2::geom_line(aes(lty = .type), show.legend = FALSE) +
+      ggplot2::geom_hline(
+        yintercept = 0,
+        lty = "longdash",
+        alpha = 0.5
+      ) +
+      ggplot2::coord_cartesian(ylim = c(-.01, NA)) +
+      ggplot2::scale_color_manual(
+        values = .cols,
+        labels = .labels
+      ) +
+      ggplot2::scale_fill_manual(
+        values = .cols,
+        labels = .labels
+      ) +
+      ggplot2::scale_linetype_manual(
+        values = c("solid", "longdash")
+      ) +
+      ggplot2::scale_x_continuous(
+        labels = scales::percent_format(1)
+      ) +
+      ggplot2::labs(
+        color = NULL, fill = NULL, lty = NULL,
+        y = "Net benefit", x = "Decision threshold"
+      ) +
+      ggplot2::geom_line(
+        data = true_nb,
+        aes(x = .thr, y = nb, group = 1),
+        color = "blue", inherit.aes = FALSE
       ) +
       theme(legend.position = c(.7, .7)) +
       ggplot2::scale_y_continuous(expand = c(.275, 0))
@@ -631,14 +940,16 @@ gen_surv_data <- function(surv_formula,
       censorName = "censorTime",
       eventName = "status",
       keepEvents = TRUE
-    )
+    ) %>%
+    tibble::as_tibble() %>%
+    dplyr::select(dplyr::contains("Time"), status, x1, x2)
   return(surv_data)
 }
 
 
 #' Simulate population data for DCA simulation (Results's subsection 02)
 #'
-simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed, .verbose = FALSE) {
+simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed, pred_time = 1, .verbose = FALSE) {
   thresholds <- validate_thresholds(thresholds = thresholds)
   msg <- cli::col_blue(
     paste0(
@@ -646,32 +957,55 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed, 
     )
   )
   message(msg)
+  set.seed(.seed)
+  df_pop <- gen_surv_data(
+    surv_formula = sim_setting$surv_formula,
+    surv_shape = sim_setting$surv_shape,
+    surv_scale = sim_setting$surv_scale,
+    censor_shape = sim_setting$censor_shape,
+    censor_scale = sim_setting$censor_scale,
+    sample_size = n_pop
+  )
+  # TODO: predictions, base survival, prediction time, true nb
 
   if (isTRUE(.verbose)) {
     msg <- cli::col_blue(
       paste0(
-        "\tTrue prevalence: ", round(mean(true_p), 3),
-        "\n\tPrevalence implied by model: ", round(mean(p_hat), 3)
+        "\tTrue median surv (months): ", round(median(df_pop$survTime) * 12),
+        "\n\t1-year survival rate (%): ", round(mean(df_pop$survTime > 1) * 100)
       )
     )
     message(msg)
   }
 
+  # placeholder coxph fit object
+  fit_hat <- survival::coxph(survival::Surv(obsTime, status) ~ x1 + x2, data = df_pop[1:500, ])
+  fit_hat$coef <- fit_hat$coefficients <- sim_setting$beta_hat
+
+  df_pop$p_hat <- 1 - predict(
+    fit_example,
+    newdata = df_pop %>% mutate(obsTime = 1),
+    type = "survival"
+  )
+
   ## calculate true NB|y,p_hat
   true_nb <- map_df(thresholds, ~ {
-    compute_nb(y = y, pred = p_hat, thr = .x)
+    compute_nb_surv(
+      surv_time = df_pop$survTime,
+      p_hat = df_pop$p_hat,
+      pred_time = pred_time,
+      thr = .x
+    )
   })
 
   output <- list(
-    y = y,
-    x = x,
-    p_hat = p_hat,
-    true_p = true_p,
+    df_pop = df_pop,
+    true_nb = true_nb,
     thresholds = thresholds,
     n_pop = n_pop,
-    true_nb = true_nb,
-    true_beta = true_beta,
-    beta_hat = beta_hat,
+    true_beta = sim_setting$true_beta,
+    beta_hat = sim_setting$beta_hat,
+    sim_setting = sim_setting,
     population_seed = .seed
   )
 

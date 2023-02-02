@@ -49,6 +49,8 @@ _targets/objects
 output/simulation_study/tmp/
 output/simulation_study/tmp2/
 output/simulation_study/simulation_results.tsv
+output/simulation_study-5000/tmp/
+output/simulation_study-5000/simulation_results.tsv
 
 # tmp data
 data/tmp/

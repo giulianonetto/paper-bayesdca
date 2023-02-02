@@ -52,7 +52,7 @@ list(
   tar_target(
     name = results_03_subsection,
     command = run_case_study(
-      thresholds = seq(0, 0.5, 0.01),
+      thresholds = c(1e-10, seq(0.01, 0.5, 0.01)),
       .seed = .seed
     )
   ),
@@ -62,18 +62,19 @@ list(
       fit = results_03_subsection,
       outdir = str_path("output/case-study")
     )
-  ),
-  tar_target(
-    name = results_04_subsection,
-    command = run_simulation_study_time_to_event(
-      n_sim = 5000,
-      thresholds = c(0, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1),
-      n_pop = 2e6,
-      outdir = simulation_dir,
-      overwrite = FALSE,
-      .workers = 32,
-      .seed = .seed,
-      .verbose = TRUE
-    )
   )
+  # ),
+  # tar_target(
+  #   name = results_04_subsection,
+  #   command = run_simulation_study_surv(
+  #     n_sim = 5000,
+  #     thresholds = c(0, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1),
+  #     n_pop = 2e6,
+  #     outdir = simulation_dir,
+  #     overwrite = FALSE,
+  #     .workers = 32,
+  #     .seed = .seed,
+  #     .verbose = TRUE
+  #   )
+  # )
 )
