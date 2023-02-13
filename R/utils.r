@@ -213,16 +213,17 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
 
   bdca_fit2 <- try(
     {
-      bayesDCA::dca_surv(
+      bayesDCA::dca_surv_weibull(
         df,
+        thresholds = thresholds,
+        prediction_time = pred_time,
+        refresh = refresh,
         positivity_prior = c(0.5, 0.5),
         mean_mu = 0,
         sd_mu = 5,
         mean_log_alpha = 1,
         sd_log_alpha = 1,
-        prediction_time = pred_time,
-        refresh = refresh,
-        iter = 2000,
+        iter = 3000,
         cores = cores
       )
     },
