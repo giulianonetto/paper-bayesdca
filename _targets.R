@@ -64,13 +64,13 @@ list(
   tar_target(
     name = results_04_subsection,
     command = run_simulation_study_surv(
-      n_sim = 30,
+      n_sim = 1000,
       thresholds = c(1e-9, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75),
-      n_pop = 1e6,
+      n_pop = 2e6,
       pred_time = 12,
       outdir = str_path("output/simulation_study_surv"),
       overwrite = TRUE,
-      .workers = 7,
+      .workers = 30,
       .seed = .seed,
       .verbose = TRUE
     )
