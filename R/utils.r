@@ -201,8 +201,9 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         thresholds = thresholds,
         prediction_time = pred_time,
         refresh = refresh,
-        prior_scaling_factor = 1 / 2,
-        iter = 3000,
+        prior_anchor = "prediction_time",
+        prior_scaling_factor = 1 / 5,
+        iter = 2000,
         cores = cores
       )
     },
@@ -216,9 +217,9 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         thresholds = thresholds,
         prediction_time = pred_time,
         refresh = refresh,
-        prior_scaling_factor = 1 / 2,
+        prior_scaling_factor = 1,
         prior_anchor = "prediction_time",
-        iter = 3000,
+        iter = 2000,
         cores = cores
       )
     },
