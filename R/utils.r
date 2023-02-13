@@ -202,7 +202,8 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         prediction_time = pred_time,
         refresh = refresh,
         prior_anchor = "prediction_time",
-        prior_scaling_factor = 2,
+        cutpoints = seq(0, pred_time, length = 50),
+        prior_scaling_factor = 1,
         iter = 2000,
         cores = cores
       )
@@ -212,16 +213,17 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
 
   bdca_fit2 <- try(
     {
-      bayesDCA::dca_surv(
-        df,
-        thresholds = thresholds,
-        prediction_time = pred_time,
-        refresh = refresh,
-        prior_scaling_factor = 10,
-        prior_anchor = "prediction_time",
-        iter = 2000,
-        cores = cores
-      )
+      log("1")
+      # bayesDCA::dca_surv(
+      #   df,
+      #   thresholds = thresholds,
+      #   prediction_time = pred_time,
+      #   refresh = refresh,
+      #   prior_scaling_factor = 1 / 100,
+      #   prior_anchor = "prediction_time",
+      #   iter = 2000,
+      #   cores = cores
+      # )
     },
     silent = TRUE
   )
