@@ -183,7 +183,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
         )
         # simulate samples for DCA
         df_sample_list <- get_setting_sample_list(
-            events = 100, # sample size corresponds to expected 100 events
+            events = 200, # sample size corresponds to expected 100 events
             n_sim = n_sim, # number of simulated samples
             population_data = setting_population,
             .setting_seed = .setting_seed,
