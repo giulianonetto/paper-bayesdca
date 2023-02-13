@@ -243,6 +243,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # )
     estimation_types <- c(
         "Bayesian",
+        "Bayesian2",
         "Frequentist"
     )
     simulation_results <- simulation_results[
@@ -256,9 +257,12 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     .colors[".true_nb"] <- .colors[1]
 
     setting_labels_pretty <- purrr::map_chr(
-        get_simulation_settings(),
+        get_simulation_settings_surv(),
         ~ paste0(
-            "AUC ", .x$auc, ", prevalence ", round(.x$prev * 100), "%"
+            "C-statistic ", .x$concord,
+            ", 1-year survival ",
+            round(.x$one_year_survival_rate * 100),
+            "%"
         )
     )
 
@@ -276,7 +280,6 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # point estimates are nearly identical
     p1 <- df %>%
-        # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
         dplyr::filter(threshold <= .75) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, estimate, .true_nb
@@ -299,6 +302,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
                 labels = scales::percent(thresholds)
             )
         ) %>%
+        dplyr::filter(!is.na(value)) %>%
         ggplot2::ggplot(ggplot2::aes(thr_factor, value)) +
         ggplot2::geom_hline(
             yintercept = 0,
@@ -359,7 +363,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # 95% intervals coverage
 
     p2 <- df %>%
-        dplyr::filter(threshold <= .75) %>%
+        dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
         dplyr::group_by(threshold, .type, setting_label) %>%
         dplyr::summarise(
             cov = mean(truth_within_interval),
@@ -422,7 +426,6 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # absolute error
     p3 <- df %>%
-        # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
         dplyr::filter(threshold <= .75) %>%
         dplyr::mutate(abs_error = estimate - .true_nb) %>%
         dplyr::select(
@@ -441,6 +444,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
                 labels = scales::percent(thresholds)
             )
         ) %>%
+        dplyr::filter(!is.na(value)) %>%
         ggplot2::ggplot(ggplot2::aes(thr_factor, value)) +
         ggplot2::geom_hline(
             yintercept = 0,
@@ -482,8 +486,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # ci width
     p4 <- df %>%
-        # dplyr::filter(threshold %in% c(0, 0.001, 0.05, seq(0.1, 0.9, 0.1))) %>%
-        dplyr::filter(threshold <= .75) %>%
+        dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
         dplyr::mutate(ci_width = .upper - .lower) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, ci_width
@@ -809,7 +812,7 @@ plot_case_study_results <- function(fit, outdir) {
 
 run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
                                       outdir, overwrite, .seed,
-                                      .workers = 2, .verbose = FALSE) {
+                                      pred_time = 1, .workers = 2, .verbose = FALSE) {
     simulation_results_file <- str_path("{outdir}/simulation_results_surv.tsv")
     if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
         msg <- cli::col_br_red("Simulation results (survival) exist and will not be overwritten")
@@ -833,7 +836,6 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
     set.seed(.seed)
     settings_seeds <- sample(1:1000, n_settings)
     simulation_results <- vector("list", n_settings)
-    results_ix <- 1
     for (i in 1:n_settings) {
         .setting <- simulation_settings[[i]]
         .setting_label <- names(simulation_settings)[i]
@@ -848,7 +850,7 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
             n_pop = n_pop,
             thresholds = thresholds,
             .seed = .setting_seed,
-            pred_time = 1,
+            pred_time = pred_time,
             .verbose = .verbose
         )
         # simulate samples for DCA
@@ -859,8 +861,7 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
             .setting_seed = .setting_seed,
             .setting_label = .setting_label
         )
-        .true_incidence <- mean(setting_population$df_pop$survTime >= 1)
-        .true_nb <- setting_population$true_nb
+        .true_incidence <- mean(setting_population$df_pop$survTime <= pred_time)
         plan(multisession, workers = .workers)
         run_df <- furrr::future_map_dfr(
             df_sample_list,
@@ -873,16 +874,15 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
                     ))
                     message(msg)
                 }
-                outdir <- "output/testing"
                 .simulation_output <- run_dca_simulation_surv(
                     df_sample = df_sample,
                     thresholds = thresholds,
-                    true_nb = .true_nb,
+                    pred_time = pred_time,
+                    true_nb = setting_population$true_nb,
                     true_incidence = .true_incidence,
-                    .cutpoints = c(0, .3, .6, .9),
                     .setting_label = .setting_label,
                     .run_label = .run_label,
-                    result_path = str_path("{outdir}/tmp-surv/{.run_label}.tsv"),
+                    result_path = str_path("{outdir}/tmp/{.run_label}.tsv"),
                     overwrite = overwrite,
                     .verbose = .verbose
                 )

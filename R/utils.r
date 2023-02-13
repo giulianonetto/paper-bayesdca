@@ -139,7 +139,7 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
       .type, strategy
     )
 
-  res_all <- bind_rows(res_bdca, res_rmda)
+  res_all <- dplyr::bind_rows(res_bdca, res_rmda)
 
   if (isTRUE(show_informative_prior)) {
     res_bdca_informative <- dplyr::bind_rows(
@@ -181,37 +181,64 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
 compare_bdca_vs_dcurves <- function(dataset, outcomes,
                                     predictor, thresholds,
                                     pred_time,
-                                    .cutpoints,
                                     treat_all_rmda = FALSE, bootstraps = 500,
                                     refresh = 0, .quiet = FALSE, cores = 1) {
   df <- data.frame(
     outcomes = dataset[[outcomes]],
     predictor = dataset[[predictor]]
   )
+  .event_times <- unname(df[["outcomes"]][, 1])[unname(df[["outcomes"]][, 2]) == 1L]
   thresholds <- validate_thresholds(thresholds = thresholds)
   # Estimate decision curves
   if (isFALSE(.quiet)) {
     msg <- cli::col_blue("Estimating DCA with bayesDCA (default)")
     message(msg)
   }
-  bdca_fit <- bayesDCA::dca_surv(
-    df,
-    thresholds = thresholds,
-    prediction_time = pred_time,
-    refresh = refresh,
-    cores = cores,
-    cutpoints = .cutpoints # TODO: figure these out
+  bdca_fit <- try(
+    {
+      bayesDCA::dca_surv(
+        df,
+        thresholds = thresholds,
+        prediction_time = pred_time,
+        refresh = refresh,
+        prior_scaling_factor = 1 / 2,
+        iter = 3000,
+        cores = cores
+      )
+    },
+    silent = TRUE
+  )
+
+  bdca_fit2 <- try(
+    {
+      bayesDCA::dca_surv(
+        df,
+        thresholds = thresholds,
+        prediction_time = pred_time,
+        refresh = refresh,
+        prior_scaling_factor = 1 / 2,
+        prior_anchor = "prediction_time",
+        iter = 3000,
+        cores = cores
+      )
+    },
+    silent = TRUE
   )
 
   if (isFALSE(.quiet)) {
     msg <- cli::col_blue("Estimating DCA with dcurves")
     message(msg)
   }
-  dcurves_fit <- dcurves::dca(
-    outcomes ~ predictor,
-    data = df,
-    time = pred_time,
-    thresholds = thresholds
+  dcurves_fit <- try(
+    {
+      dcurves::dca(
+        outcomes ~ predictor,
+        data = df,
+        time = pred_time,
+        thresholds = thresholds
+      )
+    },
+    silent = TRUE
   )
 
   # get results into standardized data.frames
@@ -219,47 +246,81 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
     msg <- cli::col_blue("Plotting results")
     message(msg)
   }
-  res_bdca <- dplyr::bind_rows(
-    bdca_fit$summary$net_benefit %>%
-      dplyr::select(
-        threshold, estimate,
-        .lower := `2.5%`, .upper := `97.5%`
-      ) %>%
-      dplyr::mutate(
-        .type = "Bayesian",
-        strategy = "Model-based decisions"
-      ),
-    bdca_fit$summary$treat_all %>%
-      dplyr::select(
-        threshold, estimate,
-        .lower := `2.5%`, .upper := `97.5%`
-      ) %>%
-      dplyr::mutate(
-        .type = "Bayesian",
-        strategy = "Treat all"
-      )
-  )
 
-  res_dcurves <- dcurves_fit$dca %>%
-    dplyr::filter(variable %in% c("all", "predictor")) %>%
-    dplyr::mutate(
-      strategy = ifelse(
-        variable == "all",
-        "Treat all",
-        "Model-based decisions"
-      ),
-      .type = "Frequentist",
-      .lower := NA_real_,
-      .upper := NA_real_,
-    ) %>%
-    dplyr::select(
-      threshold,
-      estimate := net_benefit,
-      .lower, .upper,
-      .type, strategy
+  if (class(bdca_fit) != "try-error") {
+    res_bdca <- dplyr::bind_rows(
+      bdca_fit$summary$net_benefit %>%
+        dplyr::select(
+          threshold, estimate,
+          .lower := `2.5%`, .upper := `97.5%`
+        ) %>%
+        dplyr::mutate(
+          .type = "Bayesian",
+          strategy = "Model-based decisions"
+        ),
+      bdca_fit$summary$treat_all %>%
+        dplyr::select(
+          threshold, estimate,
+          .lower := `2.5%`, .upper := `97.5%`
+        ) %>%
+        dplyr::mutate(
+          .type = "Bayesian",
+          strategy = "Treat all"
+        )
     )
+  } else {
+    res_bdca <- data.frame()
+  }
 
-  res_all <- bind_rows(res_bdca, res_dcurves)
+  if (class(bdca_fit2) != "try-error") {
+    res_bdca2 <- dplyr::bind_rows(
+      bdca_fit2$summary$net_benefit %>%
+        dplyr::select(
+          threshold, estimate,
+          .lower := `2.5%`, .upper := `97.5%`
+        ) %>%
+        dplyr::mutate(
+          .type = "Bayesian2",
+          strategy = "Model-based decisions"
+        ),
+      bdca_fit2$summary$treat_all %>%
+        dplyr::select(
+          threshold, estimate,
+          .lower := `2.5%`, .upper := `97.5%`
+        ) %>%
+        dplyr::mutate(
+          .type = "Bayesian2",
+          strategy = "Treat all"
+        )
+    )
+  } else {
+    res_bdca2 <- data.frame()
+  }
+
+  if (class(dcurves_fit) != "try-error") {
+    res_dcurves <- dcurves_fit$dca %>%
+      dplyr::filter(variable %in% c("all", "predictor")) %>%
+      dplyr::mutate(
+        strategy = ifelse(
+          variable == "all",
+          "Treat all",
+          "Model-based decisions"
+        ),
+        .type = "Frequentist",
+        .lower := NA_real_,
+        .upper := NA_real_,
+      ) %>%
+      dplyr::select(
+        threshold,
+        estimate := net_benefit,
+        .lower, .upper,
+        .type, strategy
+      )
+  } else {
+    res_dcurves <- data.frame()
+  }
+
+  res_all <- dplyr::bind_rows(res_bdca, res_bdca2, res_dcurves)
   return(res_all)
 }
 
@@ -308,6 +369,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
 
   .cols <- c(
     "Model-based decisions.Bayesian" = "#1B9E77",
+    "Model-based decisions.Bayesian2" = "#3011a0",
     "Model-based decisions.Frequentist" = "red",
     "Treat all.Bayesian" = "gray40"
   )
@@ -559,7 +621,7 @@ run_dca_simulation <- function(df_sample,
     cores = cores
   )
 
-  result <- left_join(
+  result <- dplyr::left_join(
     dca_comparison,
     true_nb %>%
       dplyr::select(
@@ -584,7 +646,7 @@ run_dca_simulation <- function(df_sample,
 
 
   if (!is.null(result_path)) {
-    write_tsv(
+    readr::write_tsv(
       result,
       result_path,
     )
@@ -599,12 +661,12 @@ run_dca_simulation <- function(df_sample,
     sim_plot <- plot_bdca_vs_rmda(
       comparison = dca_comparison
     ) +
-      geom_line(
+      ggplot2::geom_line(
         data = true_nb,
         aes(x = .thr, y = nb, group = 1),
         color = "red", inherit.aes = FALSE
       ) +
-      theme(legend.position = c(.7, .7)) +
+      ggplot2::theme(legend.position = c(.7, .7)) +
       ggplot2::scale_y_continuous(expand = c(.275, 0))
     output[["plot"]] <- sim_plot
   }
@@ -635,7 +697,7 @@ run_dca_simulation_surv <- function(df_sample,
                                     thresholds,
                                     true_nb,
                                     true_incidence,
-                                    .cutpoints,
+                                    pred_time,
                                     raw_data = FALSE, .plot = FALSE,
                                     result_path = NULL, .run_label = NULL,
                                     .setting_label = NULL,
@@ -670,13 +732,12 @@ run_dca_simulation_surv <- function(df_sample,
       outcomes = "outcomes",
       predictor = "model_predictions",
       thresholds = thresholds,
-      .cutpoints = .cutpoints,
-      pred_time = 1,
+      pred_time = pred_time,
       .quiet = TRUE,
       cores = cores
     )
 
-  result <- left_join(
+  result <- dplyr::left_join(
     dca_comparison,
     true_nb %>%
       dplyr::select(
@@ -686,14 +747,12 @@ run_dca_simulation_surv <- function(df_sample,
     by = "threshold"
   ) %>%
     dplyr::mutate(
-      .true_nb = ifelse(
-        strategy == "Treat all", NA_real_, .true_nb
-      ),
       abs_error = abs(estimate - .true_nb),
       truth_within_interval = .true_nb >= .lower & .true_nb <= .upper,
       true_incidence = true_incidence,
       .simulation_seed = .seed
-    )
+    ) %>%
+    dplyr::filter(strategy != "Treat all")
 
   if (!is.null(.setting_label)) {
     result$setting_label <- unique(df_sample$setting_label)
@@ -704,7 +763,7 @@ run_dca_simulation_surv <- function(df_sample,
 
 
   if (!is.null(result_path)) {
-    write_tsv(
+    readr::write_tsv(
       result,
       result_path,
     )
@@ -770,7 +829,7 @@ run_dca_simulation_surv <- function(df_sample,
         aes(x = .thr, y = nb, group = 1),
         color = "blue", inherit.aes = FALSE
       ) +
-      theme(legend.position = c(.7, .7)) +
+      ggplot2::theme(legend.position = c(.7, .7)) +
       ggplot2::scale_y_continuous(expand = c(.275, 0))
     output[["plot"]] <- sim_plot
   }
@@ -865,48 +924,80 @@ test_sim_setting <- function(.sim, n = 1e5, .return = FALSE) {
 #' Get simulation survival settings (Results' subsection 3)
 get_simulation_settings_surv <- function() {
   simulation_settings <- list(
-    # AUC 0.65, prev 0.01 vs 0.0096
     sim1 = list(
-      surv_formula = "log(1.4)*x1 + log(0.6)*x2",
-      true_beta = c(log(1.4), log(0.6)),
-      beta_hat = c(log(1.4), log(0.6)) * 1.5,
-      surv_shape = 1,
-      surv_scale = 1,
-      censor_shape = 1,
-      censor_scale = 0.125,
-      sample_size = 1000,
-      concord = 0.65,
-      events = 107,
-      median_surv = 0.7
+      true_beta = c(log(1.3), log(0.7)),
+      beta_hat = c(log(1.3), log(0.7)) * 1.01,
+      lambda = 0.12,
+      gamma = 1.22,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.77,
+      one_year_survival_rate = 0.1,
+      concord = 0.6,
+      median_surv = 4 # months
     ),
-    # AUC 0.65, prev 0.05 vs 0.06
     sim2 = list(
-      surv_formula = "log(3)*x1 + log(1/3)*x2",
-      true_beta = c(log(3), log(1 / 3)),
-      beta_hat = c(log(3), log(1 / 3)) * 1.5,
-      surv_shape = 1,
-      surv_scale = 0.3,
-      censor_shape = 1,
-      censor_scale = 0.3,
-      sample_size = 1000,
-      concord = 0.85,
-      events = 101,
-      median_surv = 0.88
+      true_beta = c(log(1.95), log(0.05)),
+      beta_hat = c(log(1.95), log(0.05)) * 1.25,
+      lambda = 4e-4,
+      gamma = 4,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.66,
+      one_year_survival_rate = 0.2,
+      concord = 0.9,
+      median_surv = 6 # months
     )
   )
 
   return(simulation_settings)
 }
 
+#' Generate survival data using simsurv package
+#'
+gen_surv_data <- function(lambda,
+                          gamma,
+                          true_beta,
+                          max_follow_up,
+                          sample_size,
+                          seed) {
+  predictors <- data.frame(
+    id = seq_len(sample_size),
+    x1 = rnorm(sample_size),
+    x2 = rnorm(sample_size)
+  )
+  df <- simsurv::simsurv(
+    dist = "weibull",
+    lambdas = lambda,
+    gammas = gamma,
+    x = predictors,
+    betas = setNames(true_beta, c("x1", "x2")),
+    maxt = .Machine$double.max - 1e-9,
+    interval = c(0, .Machine$double.max),
+    seed = seed
+  )
+  df <- merge(df, predictors)
+  df$censorTime <- max_follow_up * runif(sample_size)
+  df$survTime <- df$eventtime
+  df$obsTime <- pmin(df$censorTime, df$survTime)
+  df$status <- as.numeric(df$censorTime > df$survTime)
+  df <- df[
+    c(
+      "id", "x1", "x2",
+      "survTime", "censorTime",
+      "obsTime", "status"
+    )
+  ]
+
+  return(df)
+}
+
 #' Generate survival data using simstudy package
 #'
-
-gen_surv_data <- function(surv_formula,
-                          surv_shape,
-                          surv_scale,
-                          censor_shape,
-                          censor_scale,
-                          sample_size) {
+gen_surv_data_old <- function(surv_formula,
+                              surv_shape,
+                              surv_scale,
+                              censor_shape,
+                              censor_scale,
+                              sample_size) {
   import::from(magrittr, `%>%`)
   def_x <- simstudy::defData(
     varname = "x1",
@@ -935,21 +1026,23 @@ gen_surv_data <- function(surv_formula,
     def_x
   ) %>%
     simstudy::genSurv(
-      def_surv,
-      timeName = "obsTime",
-      censorName = "censorTime",
-      eventName = "status",
-      keepEvents = TRUE
+      def_surv
+      # timeName = "obsTime",
+      # censorName = "censorTime",
+      # eventName = "status",
+      # keepEvents = TRUE
     ) %>%
-    tibble::as_tibble() %>%
-    dplyr::select(dplyr::contains("Time"), status, x1, x2)
+    tibble::as_tibble()
+  # tibble::as_tibble() %>%
+  # dplyr::select(dplyr::contains("Time"), status, x1, x2)
   return(surv_data)
 }
 
 
 #' Simulate population data for DCA simulation (Results's subsection 02)
 #'
-simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed, pred_time = 1, .verbose = FALSE) {
+simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed,
+                                         pred_time = 12, .verbose = FALSE, rm_zeros = FALSE) {
   thresholds <- validate_thresholds(thresholds = thresholds)
   msg <- cli::col_blue(
     paste0(
@@ -959,20 +1052,46 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed, 
   message(msg)
   set.seed(.seed)
   df_pop <- gen_surv_data(
-    surv_formula = sim_setting$surv_formula,
-    surv_shape = sim_setting$surv_shape,
-    surv_scale = sim_setting$surv_scale,
-    censor_shape = sim_setting$censor_shape,
-    censor_scale = sim_setting$censor_scale,
-    sample_size = n_pop
+    lambda = sim_setting$lambda,
+    gamma = sim_setting$gamma,
+    true_beta = sim_setting$true_beta,
+    max_follow_up = sim_setting$max_follow_up,
+    sample_size = n_pop,
+    seed = .seed
   )
-  # TODO: predictions, base survival, prediction time, true nb
+
+  n_zeros_surv <- sum(df_pop$survTime == 0)
+  n_zeros_cens <- sum(df_pop$censorTime == 0)
+  n_zeros_obs <- sum(df_pop$obsTime == 0)
+  if (n_zeros_obs > 0) {
+    msg <- cli::col_br_red(
+      paste0(
+        "Zero-type issues detected: ",
+        " surv ", n_zeros_surv,
+        " cens ", n_zeros_cens,
+        " obs ", n_zeros_obs
+      )
+    )
+    message(msg)
+  }
+  if (n_zeros_obs > 10) {
+    msg <- stringr::str_glue(
+      "Number of zeroed observations cannot exceed 10 (got {n_zeros_obs})."
+    )
+    stop(msg)
+  }
+  if (isTRUE(rm_zeros)) {
+    df_pop <- df_pop %>%
+      dplyr::filter(obsTime > 0)
+    n_pop <- nrow(df_pop)
+  }
 
   if (isTRUE(.verbose)) {
     msg <- cli::col_blue(
       paste0(
-        "\tTrue median surv (months): ", round(median(df_pop$survTime) * 12),
-        "\n\t1-year survival rate (%): ", round(mean(df_pop$survTime > 1) * 100)
+        "\tTrue median surv (months): ", round(median(df_pop$survTime)),
+        "\n\t1-year survival rate (%): ", round(mean(df_pop$survTime > 12) * 100),
+        "\n\tSurvival rate at prediction time (%): ", round(mean(df_pop$survTime > pred_time) * 100)
       )
     )
     message(msg)
@@ -983,13 +1102,13 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed, 
   fit_hat$coef <- fit_hat$coefficients <- sim_setting$beta_hat
 
   df_pop$p_hat <- 1 - predict(
-    fit_example,
-    newdata = df_pop %>% mutate(obsTime = 1),
+    fit_hat,
+    newdata = df_pop %>% dplyr::mutate(obsTime = pred_time),
     type = "survival"
   )
 
   ## calculate true NB|y,p_hat
-  true_nb <- map_df(thresholds, ~ {
+  true_nb <- purrr::map_df(thresholds, ~ {
     compute_nb_surv(
       surv_time = df_pop$survTime,
       p_hat = df_pop$p_hat,
@@ -1006,6 +1125,8 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed, 
     true_beta = sim_setting$true_beta,
     beta_hat = sim_setting$beta_hat,
     sim_setting = sim_setting,
+    n_zeros_surv = n_zeros_surv,
+    n_zeros_cens = n_zeros_cens,
     population_seed = .seed
   )
 

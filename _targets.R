@@ -16,8 +16,6 @@ tar_option_set(
   )
 )
 
-simulation_dir <- str_path("output/simulation_study")
-
 # Replace the target list below with your own:
 list(
   tar_target(
@@ -33,7 +31,7 @@ list(
       n_sim = 5000,
       thresholds = c(0, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1),
       n_pop = 2e6,
-      outdir = simulation_dir,
+      outdir = str_path("output/simulation_study"),
       overwrite = FALSE,
       .workers = 32,
       .seed = .seed,
@@ -45,7 +43,7 @@ list(
     name = results_02_subsection_plots,
     command = plot_simulation_results(
       simulation_results = results_02_subsection,
-      outdir = simulation_dir,
+      outdir = str_path("output/simulation_study"),
       global_simulation_seed = .seed
     )
   ),
@@ -62,19 +60,26 @@ list(
       fit = results_03_subsection,
       outdir = str_path("output/case-study")
     )
+  ),
+  tar_target(
+    name = results_04_subsection,
+    command = run_simulation_study_surv(
+      n_sim = 250,
+      thresholds = c(1e-9, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75),
+      n_pop = 2e6,
+      outdir = str_path("output/simulation_study_surv"),
+      overwrite = TRUE,
+      .workers = 7,
+      .seed = .seed,
+      .verbose = TRUE
+    )
+  ),
+  tar_target(
+    name = results_04_subsection_plots,
+    command = plot_simulation_results(
+      simulation_results = results_04_subsection,
+      outdir = str_path("output/simulation_study_surv"),
+      global_simulation_seed = .seed
+    )
   )
-  # ),
-  # tar_target(
-  #   name = results_04_subsection,
-  #   command = run_simulation_study_surv(
-  #     n_sim = 5000,
-  #     thresholds = c(0, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1),
-  #     n_pop = 2e6,
-  #     outdir = simulation_dir,
-  #     overwrite = FALSE,
-  #     .workers = 32,
-  #     .seed = .seed,
-  #     .verbose = TRUE
-  #   )
-  # )
 )
