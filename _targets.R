@@ -64,7 +64,7 @@ list(
   tar_target(
     name = results_04_subsection,
     command = run_simulation_study_surv(
-      n_sim = 3000,
+      n_sim = 5000,
       thresholds = c(1e-9, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75),
       n_pop = 2e6,
       pred_time = 12,
@@ -79,7 +79,7 @@ list(
     name = results_04_subsection_plots,
     command = plot_simulation_results(
       simulation_results = results_04_subsection,
-      outdir = str_path("output/simulation_study_surv"),
+      outdir = str_path("output/simulation_study_surv_weibull3"),
       global_simulation_seed = .seed
     )
   )
