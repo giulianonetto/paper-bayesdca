@@ -183,7 +183,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
         )
         # simulate samples for DCA
         df_sample_list <- get_setting_sample_list(
-            events = 200, # sample size corresponds to expected n events
+            events = 100, # sample size corresponds to expected n events
             n_sim = n_sim, # number of simulated samples
             population_data = setting_population,
             .setting_seed = .setting_seed,
@@ -468,6 +468,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) +
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
+        ggplot2::scale_y_continuous(breaks = c(-.5, 0, .5)) +
         ggplot2::theme(
             legend.position = "top",
             axis.text.x = ggplot2::element_text(size = 10)
@@ -478,7 +479,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             color = NULL
         ) +
         ggplot2::coord_cartesian(
-            ylim = c(-1, 1)
+            ylim = c(-.7, .7)
         )
 
     ggplot2::ggsave(
@@ -490,11 +491,11 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # MAPE
     p4 <- df %>%
         dplyr::filter(threshold <= .75) %>%
-        dplyr::mutate(mape = abs(estimate - .true_nb) / .true_nb) %>%
+        dplyr::mutate(ape = abs(estimate - .true_nb) / .true_nb) %>%
         dplyr::select(
-            threshold, setting_label, simulation_run_label, .type, mape
+            threshold, setting_label, simulation_run_label, .type, ape
         ) %>%
-        tidyr::pivot_wider(names_from = .type, values_from = mape) %>%
+        tidyr::pivot_wider(names_from = .type, values_from = ape) %>%
         tidyr::pivot_longer(cols = dplyr::any_of(estimation_types)) %>%
         dplyr::mutate(
             name = factor(
