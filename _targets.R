@@ -68,7 +68,7 @@ list(
       thresholds = c(1e-9, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75),
       n_pop = 2e6,
       pred_time = 12,
-      outdir = str_path("output/simulation_study_surv"),
+      outdir = str_path("output/simulation_study_surv_weibull4"),
       overwrite = TRUE,
       .workers = 32,
       .seed = .seed,
@@ -79,7 +79,7 @@ list(
     name = results_04_subsection_plots,
     command = plot_simulation_results(
       simulation_results = results_04_subsection,
-      outdir = str_path("output/simulation_study_surv_weibull3"),
+      outdir = str_path("output/simulation_study_surv_weibull4"),
       global_simulation_seed = .seed
     )
   )
