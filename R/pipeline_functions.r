@@ -299,7 +299,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             thr_factor = factor(
                 threshold,
                 levels = thresholds,
-                labels = scales::percent(thresholds)
+                labels = get_thr_label(thresholds)
             )
         ) %>%
         dplyr::filter(!is.na(value)) %>%
@@ -377,7 +377,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             thr_factor = factor(
                 threshold,
                 levels = thresholds,
-                labels = scales::percent(thresholds)
+                labels = get_thr_label(thresholds)
             )
         ) %>%
         dplyr::arrange(.type) %>%
@@ -441,7 +441,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             thr_factor = factor(
                 threshold,
                 levels = thresholds,
-                labels = scales::percent(thresholds)
+                labels = get_thr_label(thresholds)
             )
         ) %>%
         dplyr::filter(!is.na(value)) %>%
@@ -487,8 +487,78 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         width = 15, height = 6.5, dpi = 600
     )
 
-    # ci width
+    # MAPE
     p4 <- df %>%
+        dplyr::filter(threshold <= .75) %>%
+        dplyr::mutate(mape = abs(estimate - .true_nb) / .true_nb) %>%
+        dplyr::select(
+            threshold, setting_label, simulation_run_label, .type, mape
+        ) %>%
+        tidyr::pivot_wider(names_from = .type, values_from = mape) %>%
+        tidyr::pivot_longer(cols = dplyr::any_of(estimation_types)) %>%
+        dplyr::mutate(
+            name = factor(
+                as.character(name),
+                levels = sort(estimation_types)
+            ),
+            thr_factor = factor(
+                threshold,
+                levels = thresholds,
+                labels = get_thr_label(thresholds)
+            )
+        ) %>%
+        dplyr::filter(!is.na(value)) %>%
+        dplyr::group_by(thr_factor, setting_label, name) %>%
+        dplyr::summarise(mape = ggpubr::mean_ci(value)) %>%
+        tidyr::unnest_wider(mape) %>%
+        ggplot2::ggplot(
+            ggplot2::aes(
+                x = thr_factor,
+                y = y,
+                ymin = ymin,
+                ymax = ymax,
+                color = name,
+                fill = name
+            )
+        ) +
+        ggplot2::geom_col(
+            position = ggplot2::position_dodge(width = 0.75),
+            width = 1e-4,
+            lty = "dotted",
+            alpha = 0.2,
+            show.legend = FALSE
+        ) +
+        ggplot2::geom_pointrange(
+            position = ggplot2::position_dodge(width = 0.75),
+            # size = 1, linewidth = 1.2,
+            pch = 21, color = "gray20"
+        ) +
+        ggplot2::facet_wrap(~setting_label, scales = "free_y") +
+        ggplot2::scale_color_manual(values = .colors) +
+        ggplot2::scale_fill_manual(values = .colors) +
+        ggplot2::theme(
+            legend.position = "top",
+            axis.text.x = ggplot2::element_text(size = 10)
+        ) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Mean Absolute Percentage Error (MAPE)",
+            color = NULL,
+            fill = NULL
+        ) +
+        ggplot2::scale_y_continuous(
+            labels = scales::percent
+        ) +
+        ggplot2::coord_cartesian(ylim = c(0, 0.2))
+
+    ggplot2::ggsave(
+        str_path("{outdir}/mape2.png"),
+        p4,
+        width = 15, height = 6.5, dpi = 600
+    )
+
+    # ci width
+    p5 <- df %>%
         dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
         dplyr::mutate(ci_width = .upper - .lower) %>%
         dplyr::select(
@@ -504,7 +574,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             thr_factor = factor(
                 threshold,
                 levels = thresholds,
-                labels = scales::percent(thresholds)
+                labels = get_thr_label(thresholds)
             )
         ) %>%
         ggplot2::ggplot(ggplot2::aes(thr_factor, value)) +
@@ -542,7 +612,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     ggplot2::ggsave(
         str_path("{outdir}/ci_width.png"),
-        p4,
+        p5,
         width = 15, height = 6.5, dpi = 600
     )
 

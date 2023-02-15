@@ -1138,3 +1138,18 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed,
 
   return(output)
 }
+
+
+get_thr_label <- function(x) {
+  labs <- character(length(x))
+  for (i in seq_along(x)) {
+    if (x[i] <= 1e-9) {
+      labs[i] <- "0%"
+    } else if (x[i] < 0.01) {
+      labs[i] <- paste0(round(x[i] * 100, 2), "%")
+    } else {
+      labs[i] <- paste0(round(x[i] * 100), "%")
+    }
+  }
+  return(labs)
+}
