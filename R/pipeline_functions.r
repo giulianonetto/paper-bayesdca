@@ -476,6 +476,9 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             x = "Decision threshold",
             y = "Estimated NB - True NB",
             color = NULL
+        ) +
+        ggplot2::coord_cartesian(
+            ylim = c(-1, 1)
         )
 
     ggplot2::ggsave(
