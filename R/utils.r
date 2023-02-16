@@ -202,9 +202,9 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         prediction_time = pred_time,
         refresh = refresh,
         prior_anchor = "prediction_time",
-        cutpoints = seq(0, pred_time, length = 10),
+        cutpoints = seq(0, pred_time, length = 50),
         min_events = 0,
-        prior_scaling_factor = 1,
+        prior_scaling_factor = 10,
         iter = 3000,
         cores = cores
       )
