@@ -64,7 +64,7 @@ list(
   tar_target(
     name = results_04_subsection,
     command = run_simulation_study_surv(
-      n_sim = 5000,
+      n_sim = 2500,
       thresholds = c(1e-9, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75),
       n_pop = 2e6,
       pred_time = 12,
