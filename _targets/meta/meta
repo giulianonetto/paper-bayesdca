@@ -1,8 +1,8 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 .get_cutpoints|function|9c2dbcbdf76e1f71|||||||||||||||
 .Random.seed|object|b8f8408506725720|||||||||||||||
-.seed|object|3ac2ce092f5a9dc7|||||||||||||||
-compare_bdca_vs_dcurves|function|a31b87623ed6eebc|||||||||||||||
+.seed|object|d72085cbe46b369f|||||||||||||||
+compare_bdca_vs_dcurves|function|3901ab64755c6525|||||||||||||||
 compare_bdca_vs_rmda|function|f69e77d308fefee1|||||||||||||||
 compute_nb|function|c33e338abcc2f4ca|||||||||||||||
 compute_nb_surv|function|c95b8e4b0bbd300f|||||||||||||||
@@ -14,22 +14,23 @@ get_setting_sample_list_surv|function|b4db9a8708dad0b9|||||||||||||||
 get_simulation_settings|function|53b17184cb147b77|||||||||||||||
 get_simulation_settings_surv|function|5ecb13083992e35c|||||||||||||||
 get_subsamples|function|8ba7988cfc208c95|||||||||||||||
+get_thr_label|function|e5909743ce059904|||||||||||||||
 plot_bdca_vs_rmda|function|e2218ba9b9ea9d53|||||||||||||||
 plot_case_study_results|function|a422742c29ea1ac2|||||||||||||||
-plot_simulation_results|function|f6a4242df499bdf5|||||||||||||||
+plot_simulation_results|function|3fc12bc139b2ed5c|||||||||||||||
 results_01_subsection|stem|1b9d10b1922ffec0|1b8bfcfb6bd5c969|b1e8ef913c7d7407|-1984634709||t19376.8083225848s|75e36065a03fb510|585589616|rds|local|vector|||104.007||
-results_02_subsection|stem|a81ba19df44ea1a8|809a06318e76d168|3eb1d56d89f3e616|130078453||t19376.8063809917s|451d37de653f7a03|45090328|rds|local|vector|||5.392||
-results_02_subsection_plots|stem|6664b0b7b16a2498|72b5a3a3a6097977|8287b899acb1c839|-2136702755||t19376.8226245592s|dbc08420efae5e6e|113120953|rds|local|vector|||27.498||
+results_02_subsection|stem|a81ba19df44ea1a8|e5ca4062549b7599|653819eb38ad6923|130078453||t19405.1999414706s|451d37de653f7a03|45090328|rds|local|vector|||5.238||
+results_02_subsection_plots|stem|2867a8a1ee4734f2|cbb1a562f57b2172|ca3f96e64414fb96|-2136702755||t19405.2027930836s|be20d8704718fec9|110246015|rds|local|vector|||27.43||
 results_03_subsection|stem|6b04a788453f4b2a|ad026428a1cb6d7c|191fd6178abf5f62|1812452782||t19386.2160987014s|b7ac9774cf640b76|13369025|rds|local|vector|||16.065||
 results_03_subsection_plots|stem|6c8404356e6bbef6|d6aa421274b4ce45|fca7ba3080c20759|965455883||t19389.0092355607s|69434b851f49d9c1|84931174|rds|local|vector|||8.559|1m22mUsing the size aesthietic with geom_segment was deprecated in ggplot2 3.4.0.36mℹ39m Please use the linewidth aesthetic instead.. is.na applied to nonlist or vector of type expression|
-results_04_subsection|stem|1295aa58e77f8ebe|30bc31abe9350add|5c1f1675cd57b354|929926898||t19401.4111076895s|06741db923e8b14d|38394|rds|local|vector|||470.436|There were 15 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 13 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 2 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems|
-results_04_subsection_plots|stem|ae039c4d6c11626c|92383aa3463f030a|ff12ec4455f0192f|-14585783||t19401.4112156538s|ae9c5bc414d1339b|377888|rds|local|vector|||9.165||
+results_04_subsection|stem|942604cec77f2722|f3fbbc2e9f6bbd79|a23fcf84054de661|929926898||t19405.2052127611s|d9679fa01c5e520e|3071415|rds|local|vector|||1.137||
+results_04_subsection_plots|stem|589110dfe2aad341|756e0fdf4b0adfaa|4dd5694a1c4226da|-14585783||t19405.2095411079s|77c7317a13f0bc89|16633121|rds|local|vector|||14.268||
 run_bayes_vs_frequentist|function|e31793d546eb81e3|||||||||||||||
 run_case_study|function|9d585f51d0c99dbf|||||||||||||||
-run_dca_simulation|function|a4a1e275ac744e87|||||||||||||||
-run_dca_simulation_surv|function|a1f990122ba1d8f3|||||||||||||||
-run_simulation_study|function|270c49b20630a0d8|||||||||||||||
-run_simulation_study_surv|function|63d31c505af2ab5e|||||||||||||||
+run_dca_simulation|function|037e84d53376b3e3|||||||||||||||
+run_dca_simulation_surv|function|2b894c421c294001|||||||||||||||
+run_simulation_study|function|5c8647599e15e0cc|||||||||||||||
+run_simulation_study_surv|function|e6608b55ff6cc67c|||||||||||||||
 simulate_dca|function|3bbdeeedacb7a108|||||||||||||||
 simulate_dca_population|function|79684121dac43131|||||||||||||||
 simulate_dca_population_surv|function|b91c8e53c5028660|||||||||||||||

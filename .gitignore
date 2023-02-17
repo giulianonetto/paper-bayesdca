@@ -60,6 +60,7 @@ data/tmp/
 .config
 bkp/
 *old*
+setting*.rds
 
 # sockeye files
 *.pbs

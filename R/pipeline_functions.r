@@ -236,16 +236,16 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
 #' @param outdir Path for output directory
 #' @param global_simulation_seed Global seed used for simulation (from `_targets.R` file)
 #' @import tidyverse
-plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed) {
+plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed, surv = FALSE) {
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
-    # estimation_types <- unique(
-    #     simulation_results$.type
-    # )
-    estimation_types <- c(
-        "Bayesian",
-        "Bayesian2",
-        "Frequentist"
+    estimation_types <- unique(
+        simulation_results$.type
     )
+
+    estimation_types <- estimation_types[
+        stringr::str_detect(estimation_types, "PEM|informative", negate = TRUE)
+    ]
+
     simulation_results <- simulation_results[
         simulation_results$.type %in% estimation_types,
     ]
@@ -256,15 +256,24 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     )
     .colors[".true_nb"] <- .colors[1]
 
-    setting_labels_pretty <- purrr::map_chr(
-        get_simulation_settings_surv(),
-        ~ paste0(
-            "C-statistic ", .x$concord,
-            ", 1-year survival ",
-            round(.x$one_year_survival_rate * 100),
-            "%"
+    if (isFALSE(surv)) {
+        setting_labels_pretty <- purrr::map_chr(
+            get_simulation_settings(),
+            ~ paste0(
+                "AUC ", .x$auc, ", prevalence ", round(.x$prev * 100), "%"
+            )
         )
-    )
+    } else {
+        setting_labels_pretty <- purrr::map_chr(
+            get_simulation_settings_surv(),
+            ~ paste0(
+                "C-statistic ", .x$concord,
+                ", 1-year survival ",
+                round(.x$one_year_survival_rate * 100),
+                "%"
+            )
+        )
+    }
 
     df <- simulation_results %>%
         dplyr::filter(strategy == "Model-based decisions") %>%
@@ -424,7 +433,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         width = 15, height = 5.5, dpi = 600
     )
 
-    # absolute error
+    # raw error
     p3 <- df %>%
         dplyr::filter(threshold <= .75) %>%
         dplyr::mutate(abs_error = estimate - .true_nb) %>%
@@ -468,7 +477,6 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) +
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
-        ggplot2::scale_y_continuous(breaks = c(-.5, 0, .5)) +
         ggplot2::theme(
             legend.position = "top",
             axis.text.x = ggplot2::element_text(size = 10)
@@ -477,10 +485,13 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             x = "Decision threshold",
             y = "Estimated NB - True NB",
             color = NULL
-        ) +
-        ggplot2::coord_cartesian(
-            ylim = c(-.7, .7)
         )
+
+    if (isTRUE(surv)) {
+        p3 <- p3 +
+            ggplot2::scale_y_continuous(breaks = c(-.5, 0, .5)) +
+            ggplot2::coord_cartesian(ylim = c(-.7, .7))
+    }
 
     ggplot2::ggsave(
         str_path("{outdir}/point_estimates_error.png"),
@@ -491,7 +502,13 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # MAPE
     p4 <- df %>%
         dplyr::filter(threshold <= .75) %>%
-        dplyr::mutate(ape = abs(estimate - .true_nb) / .true_nb) %>%
+        dplyr::mutate(
+            ape = ifelse(
+                isTRUE(surv),
+                abs(estimate - .true_nb) / true_incidence, # actually mortality rate at prediction time
+                abs(estimate - .true_nb) / true_prevalence
+            )
+        ) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, ape
         ) %>%
@@ -510,7 +527,10 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) %>%
         dplyr::filter(!is.na(value)) %>%
         dplyr::group_by(thr_factor, setting_label, name) %>%
-        dplyr::summarise(mape = ggpubr::mean_ci(value)) %>%
+        dplyr::summarise(
+            mape = ggpubr::mean_ci(value),
+            .groups = "drop"
+        ) %>%
         tidyr::unnest_wider(mape) %>%
         ggplot2::ggplot(
             ggplot2::aes(
@@ -537,23 +557,20 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::scale_fill_manual(values = .colors) +
+        ggplot2::scale_y_continuous(labels = scales::percent, limits = c(0, .2)) +
         ggplot2::theme(
             legend.position = "top",
             axis.text.x = ggplot2::element_text(size = 10)
         ) +
         ggplot2::labs(
             x = "Decision threshold",
-            y = "Mean Absolute Percentage Error (MAPE)",
+            y = "Average Percentage Error (of max NB)",
             color = NULL,
             fill = NULL
-        ) +
-        ggplot2::scale_y_continuous(
-            labels = scales::percent
-        ) +
-        ggplot2::coord_cartesian(ylim = c(0, 0.2))
+        )
 
     ggplot2::ggsave(
-        str_path("{outdir}/mape2.png"),
+        str_path("{outdir}/average_error.png"),
         p4,
         width = 15, height = 6.5, dpi = 600
     )

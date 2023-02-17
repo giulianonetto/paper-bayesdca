@@ -286,7 +286,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian2",
+          .type = "Bayesian (PEM)",
           strategy = "Model-based decisions"
         ),
       bdca_fit2$summary$treat_all %>%
@@ -295,7 +295,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian2",
+          .type = "Bayesian (PEM)",
           strategy = "Treat all"
         )
     )

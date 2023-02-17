@@ -69,7 +69,7 @@ list(
       n_pop = 2e6,
       pred_time = 12,
       outdir = str_path("output/simulation_study_surv_weibull5"),
-      overwrite = TRUE,
+      overwrite = FALSE,
       .workers = 32,
       .seed = .seed,
       .verbose = TRUE
@@ -80,6 +80,7 @@ list(
     command = plot_simulation_results(
       simulation_results = results_04_subsection,
       outdir = str_path("output/simulation_study_surv_weibull5"),
+      surv = TRUE,
       global_simulation_seed = .seed
     )
   )
