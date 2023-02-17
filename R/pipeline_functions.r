@@ -275,8 +275,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::theme(
-            legend.position = "top",
-            axis.text.x = ggplot2::element_text(size = 10)
+            legend.position = "top"
         ) +
         ggplot2::labs(
             x = "Decision threshold",
@@ -335,8 +334,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::scale_shape_manual(values = rep(19, n_types)) +
         ggplot2::scale_size_manual(values = c(1, 2 / 3, 1 / 3) * 3) +
         ggplot2::theme(
-            legend.position = c(.12, .135),
-            axis.text.x = ggplot2::element_text(size = 10)
+            legend.position = c(.12, .135)
         ) +
         ggplot2::coord_cartesian(ylim = c(0, 1)) +
         ggplot2::labs(
@@ -399,8 +397,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::theme(
-            legend.position = "top",
-            axis.text.x = ggplot2::element_text(size = 10)
+            legend.position = "top"
         ) +
         ggplot2::labs(
             x = "Decision threshold",
@@ -421,15 +418,15 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     )
 
     # MAPE
+
+    ## scale absolute errors by maximum achievable NB
+    if (isTRUE(surv)) {
+        df$ape <- abs(df$abs_error) / df$true_incidence
+    } else {
+        df$ape <- abs(df$abs_error) / df$true_prevalence
+    }
     p4 <- df %>%
         dplyr::filter(threshold <= .75) %>%
-        dplyr::mutate(
-            ape = ifelse(
-                isTRUE(surv),
-                abs(estimate - .true_nb) / true_incidence, # actually mortality rate at prediction time
-                abs(estimate - .true_nb) / true_prevalence
-            )
-        ) %>%
         dplyr::select(
             threshold, setting_label, simulation_run_label, .type, ape
         ) %>%
@@ -464,15 +461,15 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             )
         ) +
         ggplot2::geom_col(
-            position = ggplot2::position_dodge(width = 0.75),
-            width = 1e-4,
+            position = ggplot2::position_dodge(width = 0.6),
+            width = 1e-3,
             lty = "dotted",
             alpha = 0.2,
             show.legend = FALSE
         ) +
         ggplot2::geom_pointrange(
-            position = ggplot2::position_dodge(width = 0.75),
-            # size = 1, linewidth = 1.2,
+            position = ggplot2::position_dodge(width = 0.6),
+            size = 1, linewidth = 1.2,
             pch = 21, color = "gray20"
         ) +
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
@@ -480,12 +477,12 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::scale_fill_manual(values = .colors) +
         ggplot2::scale_y_continuous(labels = scales::percent, limits = c(0, .2)) +
         ggplot2::theme(
-            legend.position = "top",
-            axis.text.x = ggplot2::element_text(size = 10)
+            legend.position = c(0.075, 0.9)
         ) +
         ggplot2::labs(
             x = "Decision threshold",
-            y = "Average Percentage Error (of max NB)",
+            title = "Average Percentage Error relative to max NB",
+            y = NULL,
             color = NULL,
             fill = NULL
         )
@@ -540,8 +537,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::theme(
-            legend.position = "top",
-            axis.text.x = ggplot2::element_text(size = 10)
+            legend.position = "top"
         ) +
         ggplot2::labs(
             x = "Decision threshold",
