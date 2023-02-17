@@ -46,13 +46,8 @@ vignettes/*.pdf
 _targets/objects
 
 # simulation tmp files
-output/simulation_study/tmp/
-output/simulation_study/tmp2/
-output/simulation_study/simulation_results.tsv
-output/simulation_study-5000/tmp/
-output/simulation_study-5000/simulation_results.tsv
-output/simulation_study*/*tsv
-output/simulation_study*/tmp
+output/simulation-study*/*tsv
+output/simulation-study*/tmp
 output/testing
 example*
 # tmp data
