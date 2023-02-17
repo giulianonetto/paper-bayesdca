@@ -1,4 +1,4 @@
-run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thresholds, .seed = 123) {
+run_gusto_trial_example <- function(outdir, thresholds, .seed = 123) {
     # Comparison with other packages ----
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
     outdir <- str_path(outdir)
@@ -46,92 +46,8 @@ run_bayes_vs_frequentist <- function(outdir = "output/bayes_vs_frequentist", thr
         width = 8, height = 4.5, dpi = 600
     )
 
-
-    ### Reasonable sample size ----
-
-    set.seed(.seed)
-    test_ix <- sample(nrow(gusto), 1500)
-    dev_data <- gusto[-test_ix, ]
-    test_data_large <- gusto[test_ix, ]
-
-
-    fit_gusto <- glm(
-        day30 ~ age + sysbp + pulse + Killip,
-        data = dev_data,
-        family = binomial
-    )
-
-    test_data_large$phat1 <- predict(
-        fit_gusto,
-        newdata = test_data_large,
-        type = "response"
-    )
-
-    plot_gusto2 <- plot_bdca_vs_rmda(
-        dataset = test_data_large,
-        outcomes = "day30",
-        predictor = "phat1",
-        thresholds = thresholds,
-        bootstraps = 2e3
-    ) +
-        theme(legend.position = c(.7, .7))
-
-    ggsave(
-        str_path("{outdir}/gusto-1500.png"),
-        plot_gusto2,
-        width = 8, height = 4.5, dpi = 600
-    )
-
-    # Compare dca
-
-    misclass <- summary(
-        OptimalCutpoints::optimal.cutpoints(
-            X = "phat1",
-            status = "day30",
-            tag.healthy = 0,
-            data = test_data_large,
-            methods = c("MCT")
-        )
-    )
-    t_misclass <- misclass$MCT$Global$optimal.cutoff$cutoff[1]
-
-    df <- data.frame(
-        outcomes = test_data_large$day30,
-        model = test_data_large$phat1,
-        classifier = as.numeric(test_data_large$phat1 > t_misclass),
-        noisy_model = expit(
-            qlogis(test_data_large$phat1) + rnorm(nrow(test_data_large), sd = 1.5)
-        )
-    )
-
-    bdca <- bayesDCA::dca(df, cores = 4, thresholds = thresholds)
-
-    p1 <- compare_dca(bdca, type = "best")
-    ggsave(
-        str_path("{outdir}/gusto-1500-compare-best.png"), p1,
-        width = 10, height = 6, dpi = 600
-    )
-    p2 <- compare_dca(bdca, type = "useful")
-    ggsave(
-        str_path("{outdir}/gusto-1500-compare-useful.png"), p2,
-        width = 10, height = 6, dpi = 600
-    )
-    p3 <- compare_dca(bdca, models_or_tests = c("model", "classifier"), type = "pairwise")
-    ggsave(
-        str_path("{outdir}/gusto-1500-compare-pairwise-model-vs-classifier.png"), p3,
-        width = 10, height = 6, dpi = 600
-    )
-
-    p4 <- compare_dca(bdca, models_or_tests = c("model", "noisy_model"), type = "pairwise")
-    ggsave(
-        str_path("{outdir}/gusto-1500-compare-pairwise-model-vs-noisy-model.png"), p4,
-        width = 10, height = 6, dpi = 600
-    )
-
     output <- list(
         plot_gusto = plot_gusto,
-        plot_gusto2 = plot_gusto2,
-        p1 = p1, p2 = p2, p3 = p3, p4 = p4,
         thresholds = thresholds
     )
 
@@ -238,6 +154,11 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
 #' @import tidyverse
 plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed, surv = FALSE) {
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
+    dir.create(
+        outdir,
+        showWarnings = FALSE,
+        recursive = TRUE
+    )
     estimation_types <- unique(
         simulation_results$.type
     )
@@ -677,6 +598,11 @@ run_case_study <- function(thresholds, .seed) {
 
 plot_case_study_results <- function(fit, outdir) {
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
+    dir.create(
+        outdir,
+        showWarnings = FALSE,
+        recursive = TRUE
+    )
     library(patchwork)
     library(ggdist)
 
@@ -836,7 +762,7 @@ plot_case_study_results <- function(fit, outdir) {
                 ) +
                 ggplot2::geom_segment(
                     x = 1e-3, y = 45,
-                    xend = .03, yend = 45,
+                    xend = 0.035, yend = 45,
                     lineend = "round",
                     linejoin = "round",
                     linewidth = 1.5,
@@ -845,7 +771,7 @@ plot_case_study_results <- function(fit, outdir) {
                 ) +
                 ggplot2::geom_segment(
                     x = -1e-3, y = 45,
-                    xend = -.03, yend = 45,
+                    xend = -0.035, yend = 45,
                     lineend = "round",
                     linejoin = "round",
                     linewidth = 1.5,
@@ -854,8 +780,8 @@ plot_case_study_results <- function(fit, outdir) {
                 ) +
                 ggplot2::annotate(
                     "text",
-                    x = .025, y = 32.5, size = 4, color = "#4788c4",
-                    label = latex2exp::TeX("$P(\\Delta_{NB} > 0) = 63$%")
+                    x = .035, y = 32.5, size = 4, color = "#4788c4",
+                    label = latex2exp::TeX(paste0("$P(\\Delta_{NB} > 0)$ = ", prob_superior_any, "%"))
                 ) +
                 ggplot2::annotate(
                     "text",
@@ -868,7 +794,8 @@ plot_case_study_results <- function(fit, outdir) {
                     hjust = 1, fontface = "bold",
                     x = -0.0025, y = 48, size = 4, color = "gray30",
                     label = "Favors SoC"
-                )
+                ) +
+                ggplot2::coord_cartesian(xlim = c(-0.05, 0.05))
         })
     })
 
@@ -952,7 +879,7 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
             .setting_seed = .setting_seed,
             .setting_label = .setting_label
         )
-        .true_incidence <- mean(setting_population$df_pop$survTime <= pred_time)
+        .true_incidence <- mean(setting_population$df_pop$survTime <= pred_time) # actually death rate
         plan(multisession, workers = .workers)
         run_df <- furrr::future_map_dfr(
             df_sample_list,

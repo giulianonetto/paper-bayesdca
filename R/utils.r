@@ -65,7 +65,6 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
     df,
     thresholds = thresholds,
     refresh = refresh,
-    constant_prior = TRUE,
     cores = cores
   )
 
@@ -78,8 +77,9 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
       df,
       thresholds = thresholds,
       refresh = refresh,
-      constant_prior = FALSE,
-      cores = cores
+      cores = cores,
+      iter = 3000,
+      chains = cores
     )
   }
 
@@ -261,7 +261,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian",
+          .type = "Bayesian (PEM)",
           strategy = "Model-based decisions"
         ),
       bdca_fit$summary$treat_all %>%
@@ -270,7 +270,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian",
+          .type = "Bayesian (PEM)",
           strategy = "Treat all"
         )
     )
@@ -286,7 +286,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian (PEM)",
+          .type = "Bayesian",
           strategy = "Model-based decisions"
         ),
       bdca_fit2$summary$treat_all %>%
@@ -295,7 +295,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian (PEM)",
+          .type = "Bayesian",
           strategy = "Treat all"
         )
     )
@@ -360,7 +360,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
     comparison <- compare_bdca_vs_rmda(
       dataset = dataset, outcomes = outcomes,
       predictor = predictor, thresholds = thresholds,
-      treat_all_rmda = FALSE, bootstraps = 500,
+      treat_all_rmda = FALSE, bootstraps = bootstraps,
       show_informative_prior = show_informative_prior,
       refresh = 0, cores = cores, .quiet = FALSE
     )
@@ -375,7 +375,6 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
 
   .cols <- c(
     "Model-based decisions.Bayesian" = "#1B9E77",
-    "Model-based decisions.Bayesian2" = "#3011a0",
     "Model-based decisions.Frequentist" = "red",
     "Treat all.Bayesian" = "gray40"
   )

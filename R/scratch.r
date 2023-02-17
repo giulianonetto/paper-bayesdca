@@ -10,13 +10,13 @@ system.time({
             prediction_time = 12,
             thresholds = seq(0, .9, length = 51),
             keep_prior = TRUE,
-            cutpoints = seq(0, 12, length = 10),
-            prior_only = TRUE,
+            cutpoints = seq(0, 12, length = 50),
+            prior_only = FALSE,
             iter = 2000,
             cores = 1,
             chains = 1,
             refresh = 0,
-            prior_scaling_factor = 2,
+            prior_scaling_factor = 1,
             min_events = 0
         )
 })

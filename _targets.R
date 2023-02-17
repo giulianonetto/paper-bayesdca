@@ -6,7 +6,14 @@ source(here("R/pipeline_functions.r"))
 options(tidyverse.quiet = TRUE)
 
 # global seed
-.seed <- 16012023
+.seed <- 12112022
+
+# decision thresholds used in simulations and examples
+simulation_thresholds <- c(
+  1e-9, 0.001, 0.01,
+  0.05, 0.1, 0.25,
+  0.5, 0.75, 0.9
+)
 
 # Set target options:
 tar_option_set(
@@ -19,67 +26,67 @@ tar_option_set(
 # Replace the target list below with your own:
 list(
   tar_target(
-    name = results_01_subsection,
-    command = run_bayes_vs_frequentist(
-      thresholds = seq(0, 0.9, 0.01),
+    name = gusto_trial_example,
+    command = run_gusto_trial_example(
+      outdir = str_path("output/gusto-trial-example"),
+      thresholds = seq(0, 0.95, 0.01),
       .seed = .seed
     )
   ),
   tar_target(
-    name = results_02_subsection,
+    name = simulation_binary_outcomes,
     command = run_simulation_study(
-      n_sim = 5000,
-      thresholds = c(0, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1),
-      n_pop = 2e6,
-      outdir = str_path("output/simulation_study"),
-      overwrite = FALSE,
-      .workers = 32,
+      n_sim = 5,
+      thresholds = simulation_thresholds,
+      n_pop = 2e4,
+      outdir = str_path("output/simulation-study-binary"),
+      overwrite = TRUE,
+      .workers = 2,
       .seed = .seed,
       .verbose = TRUE
     )
   ),
   tar_target(
-    # plotting gets a step of its own to leave simulation alone
-    name = results_02_subsection_plots,
+    name = plot_simulation_binary_outcomes,
     command = plot_simulation_results(
-      simulation_results = results_02_subsection,
-      outdir = str_path("output/simulation_study"),
+      simulation_results = simulation_binary_outcomes,
+      outdir = str_path("output/simulation-study-binary"),
       global_simulation_seed = .seed
     )
   ),
   tar_target(
-    name = results_03_subsection,
+    name = adnex_case_study,
     command = run_case_study(
-      thresholds = c(1e-10, seq(0.01, 0.5, 0.01)),
+      thresholds = seq(0, 0.5, 0.01),
       .seed = .seed
     )
   ),
   tar_target(
-    name = results_03_subsection_plots,
+    name = plot_adnex_case_study,
     command = plot_case_study_results(
-      fit = results_03_subsection,
-      outdir = str_path("output/case-study")
+      fit = adnex_case_study,
+      outdir = str_path("output/adnex-case-study")
     )
   ),
   tar_target(
-    name = results_04_subsection,
+    name = simulation_survival_outcomes,
     command = run_simulation_study_surv(
-      n_sim = 2500,
-      thresholds = c(1e-9, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75),
-      n_pop = 2e6,
+      n_sim = 5,
+      thresholds = simulation_thresholds,
+      n_pop = 2e4,
       pred_time = 12,
-      outdir = str_path("output/simulation_study_surv_weibull5"),
-      overwrite = FALSE,
-      .workers = 32,
+      outdir = str_path("output/simulation-study-survival"),
+      overwrite = TRUE,
+      .workers = 2,
       .seed = .seed,
       .verbose = TRUE
     )
   ),
   tar_target(
-    name = results_04_subsection_plots,
+    name = plot_simulation_survival_outcomes,
     command = plot_simulation_results(
-      simulation_results = results_04_subsection,
-      outdir = str_path("output/simulation_study_surv_weibull5"),
+      simulation_results = simulation_survival_outcomes,
+      outdir = str_path("output/simulation-study-survival"),
       surv = TRUE,
       global_simulation_seed = .seed
     )

@@ -1,9 +1,10 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 .get_cutpoints|function|9c2dbcbdf76e1f71|||||||||||||||
 .Random.seed|object|b8f8408506725720|||||||||||||||
-.seed|object|d72085cbe46b369f|||||||||||||||
-compare_bdca_vs_dcurves|function|3901ab64755c6525|||||||||||||||
-compare_bdca_vs_rmda|function|f69e77d308fefee1|||||||||||||||
+.seed|object|49919b17bd696599|||||||||||||||
+adnex_case_study|stem|fb4d68ff50cddfc9|8da817af14dd58c0|5ac23adae365034e|505499449||t19405.2990076848s|7672d95896966861|13365268|rds|local|vector|||14.042||
+compare_bdca_vs_dcurves|function|e5c4d4c2a78076ec|||||||||||||||
+compare_bdca_vs_rmda|function|97a7bd7804f46dad|||||||||||||||
 compute_nb|function|c33e338abcc2f4ca|||||||||||||||
 compute_nb_surv|function|c95b8e4b0bbd300f|||||||||||||||
 expit|function|d42f2e267dbac39a|||||||||||||||
@@ -15,9 +16,13 @@ get_simulation_settings|function|53b17184cb147b77|||||||||||||||
 get_simulation_settings_surv|function|5ecb13083992e35c|||||||||||||||
 get_subsamples|function|8ba7988cfc208c95|||||||||||||||
 get_thr_label|function|e5909743ce059904|||||||||||||||
-plot_bdca_vs_rmda|function|e2218ba9b9ea9d53|||||||||||||||
-plot_case_study_results|function|a422742c29ea1ac2|||||||||||||||
-plot_simulation_results|function|3fc12bc139b2ed5c|||||||||||||||
+gusto_trial_example|stem|d62bccc1e0230960|9aa5d248e5b751cd|e9f1f44e3461ad61|918145497||t19405.2973989646s|ec35f4f993a54c94|129237|rds|local|vector|||35.12||
+plot_adnex_case_study|stem|8db4e98a040ec4c7|8664337d8549e44f|929da3df640b81af|103864010||t19405.3014447464s|fa1a428310479db9|84904934|rds|local|vector|||6.861|1m22mUsing the size aesthietic with geom_segment was deprecated in ggplot2 3.4.0.36mℹ39m Please use the linewidth aesthetic instead.. is.na applied to nonlist or vector of type expression|
+plot_bdca_vs_rmda|function|6ed76e29722cdcb0|||||||||||||||
+plot_case_study_results|function|69c417b8f19dd97f|||||||||||||||
+plot_simulation_binary_outcomes|stem|43ae31d90c482c5c|fccee88ad0f0fcc8|ad018e3bd64c7615|-776717378||t19405.2783049344s|99a6a820cb144678|317337|rds|local|vector|||14.268||
+plot_simulation_results|function|aa52b884abb13fcc|||||||||||||||
+plot_simulation_survival_outcomes|stem|f1574ddd1f91fc93|eab867facfd15564|5d8083e2187ee54f|-1915809512||t19405.2779417365s|7a9388bea6f3d8dd|193076|rds|local|vector|||10.14||
 results_01_subsection|stem|1b9d10b1922ffec0|1b8bfcfb6bd5c969|b1e8ef913c7d7407|-1984634709||t19376.8083225848s|75e36065a03fb510|585589616|rds|local|vector|||104.007||
 results_02_subsection|stem|a81ba19df44ea1a8|e5ca4062549b7599|653819eb38ad6923|130078453||t19405.1999414706s|451d37de653f7a03|45090328|rds|local|vector|||5.238||
 results_02_subsection_plots|stem|2867a8a1ee4734f2|cbb1a562f57b2172|ca3f96e64414fb96|-2136702755||t19405.2027930836s|be20d8704718fec9|110246015|rds|local|vector|||27.43||
@@ -25,17 +30,21 @@ results_03_subsection|stem|6b04a788453f4b2a|ad026428a1cb6d7c|191fd6178abf5f62|18
 results_03_subsection_plots|stem|6c8404356e6bbef6|d6aa421274b4ce45|fca7ba3080c20759|965455883||t19389.0092355607s|69434b851f49d9c1|84931174|rds|local|vector|||8.559|1m22mUsing the size aesthietic with geom_segment was deprecated in ggplot2 3.4.0.36mℹ39m Please use the linewidth aesthetic instead.. is.na applied to nonlist or vector of type expression|
 results_04_subsection|stem|942604cec77f2722|f3fbbc2e9f6bbd79|a23fcf84054de661|929926898||t19405.2052127611s|d9679fa01c5e520e|3071415|rds|local|vector|||1.137||
 results_04_subsection_plots|stem|589110dfe2aad341|756e0fdf4b0adfaa|4dd5694a1c4226da|-14585783||t19405.2095411079s|77c7317a13f0bc89|16633121|rds|local|vector|||14.268||
-run_bayes_vs_frequentist|function|e31793d546eb81e3|||||||||||||||
+run_bayes_vs_frequentist|function|89793868063be714|||||||||||||||
 run_case_study|function|9d585f51d0c99dbf|||||||||||||||
-run_dca_simulation|function|037e84d53376b3e3|||||||||||||||
-run_dca_simulation_surv|function|2b894c421c294001|||||||||||||||
-run_simulation_study|function|5c8647599e15e0cc|||||||||||||||
-run_simulation_study_surv|function|e6608b55ff6cc67c|||||||||||||||
+run_dca_simulation|function|581f64643ab36e23|||||||||||||||
+run_dca_simulation_surv|function|388eb3029dfa2c15|||||||||||||||
+run_gusto_trial_example|function|8dd6345b227bf163|||||||||||||||
+run_simulation_study|function|d4c8936487cadf5c|||||||||||||||
+run_simulation_study_surv|function|438ed38f40be02b4|||||||||||||||
 simulate_dca|function|3bbdeeedacb7a108|||||||||||||||
 simulate_dca_population|function|79684121dac43131|||||||||||||||
 simulate_dca_population_surv|function|b91c8e53c5028660|||||||||||||||
+simulation_binary_outcomes|stem|63c7c1d43c6d20ee|b12aae15e3ab65ab|521ccde81ab6618e|-1617543926||t19405.2778231243s|ba09f30888e520b2|50624|rds|local|vector|||339.278|There were 1 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 2 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 4 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 1 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 1 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 1 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 1 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 2 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems. There were 1 divergent transitions after warmup. Seehttpsmcstan.orgmiscwarnings.htmldivergenttransitionsafterwarmupto find out why this is a problem and how to eliminate them.. Examine the pairs plot to diagnose sampling problems|
 simulation_dir|object|3493f56f9d9830a7|||||||||||||||
 simulation_output_dir|object|e099a280849291ea|||||||||||||||
+simulation_survival_outcomes|stem|346a023a0697a891|758dd679718a4e21|c269675327b1aebe|643975||t19405.27375091s|6e9d86345760e9e3|7781|rds|local|vector|||222.866||
+simulation_thresholds|object|4a0b4c07ec765c19|||||||||||||||
 str_path|function|ceb8215a18d486a2|||||||||||||||
 summarise_dca_simulation|function|7ba131cd096a7ea9|||||||||||||||
 test_sim_setting|function|8e04d90e7fd076c0|||||||||||||||
