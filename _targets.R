@@ -15,6 +15,11 @@ simulation_thresholds <- c(
   0.5, 0.75, 0.9
 )
 
+# other simulation settings
+n_sim <- 5000
+n_pop <- 2e6
+workers <- 32
+
 # Set target options:
 tar_option_set(
   packages = c(
@@ -36,12 +41,12 @@ list(
   tar_target(
     name = simulation_binary_outcomes,
     command = run_simulation_study(
-      n_sim = 5,
+      n_sim = n_sim,
       thresholds = simulation_thresholds,
-      n_pop = 2e4,
+      n_pop = n_pop,
       outdir = str_path("output/simulation-study-binary"),
       overwrite = TRUE,
-      .workers = 2,
+      .workers = workers,
       .seed = .seed,
       .verbose = TRUE
     )
@@ -71,13 +76,13 @@ list(
   tar_target(
     name = simulation_survival_outcomes,
     command = run_simulation_study_surv(
-      n_sim = 5,
+      n_sim = n_sim,
       thresholds = simulation_thresholds,
-      n_pop = 2e4,
+      n_pop = n_pop,
       pred_time = 12,
       outdir = str_path("output/simulation-study-survival"),
       overwrite = TRUE,
-      .workers = 2,
+      .workers = workers,
       .seed = .seed,
       .verbose = TRUE
     )
