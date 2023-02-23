@@ -45,7 +45,7 @@ list(
       thresholds = simulation_thresholds,
       n_pop = n_pop,
       outdir = str_path("output/simulation-study-binary"),
-      overwrite = TRUE,
+      overwrite = FALSE,
       .workers = workers,
       .seed = .seed,
       .verbose = TRUE
@@ -81,7 +81,7 @@ list(
       n_pop = n_pop,
       pred_time = 12,
       outdir = str_path("output/simulation-study-survival"),
-      overwrite = TRUE,
+      overwrite = FALSE,
       .workers = workers,
       .seed = .seed,
       .verbose = TRUE
@@ -94,6 +94,13 @@ list(
       outdir = str_path("output/simulation-study-survival"),
       surv = TRUE,
       global_simulation_seed = .seed
+    )
+  ),
+  tar_target(
+    name = get_final_figure_survival_simulation,
+    command = merge_survival_simulation_plots(
+      survival_simulation_plots = plot_simulation_survival_outcomes,
+      outdir = str_path("output/simulation-study-survival")
     )
   )
 )

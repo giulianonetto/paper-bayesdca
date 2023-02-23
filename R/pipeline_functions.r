@@ -152,30 +152,31 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
 #' @param outdir Path for output directory
 #' @param global_simulation_seed Global seed used for simulation (from `_targets.R` file)
 #' @import tidyverse
-plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed, surv = FALSE) {
+plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed,
+                                    surv = FALSE, estimation_types = NULL) {
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
     dir.create(
         outdir,
         showWarnings = FALSE,
         recursive = TRUE
     )
-    estimation_types <- unique(
-        simulation_results$.type
-    )
+    if (is.null(estimation_types)) {
+        estimation_types <- c(
+            "Bayesian", "Frequentist"
+        )
+        .colors <- c(
+            "True NB" = "#1B9E77",
+            "Bayesian" = "#7570B3",
+            "Frequentist" = "#D95F02"
+        )
+    } else {
+        stop("Not implemented")
+    }
 
-    estimation_types <- estimation_types[
-        stringr::str_detect(estimation_types, "PEM|informative", negate = TRUE)
-    ]
-
+    n_types <- length(estimation_types)
     simulation_results <- simulation_results[
         simulation_results$.type %in% estimation_types,
     ]
-    n_types <- length(estimation_types)
-    .colors <- RColorBrewer::brewer.pal(n_types + 1, "Dark2")
-    names(.colors) <- c(
-        "True NB", estimation_types
-    )
-    .colors[".true_nb"] <- .colors[1]
 
     if (isFALSE(surv)) {
         setting_labels_pretty <- purrr::map_chr(
@@ -222,10 +223,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
                 "True NB",
                 name
             ),
-            name = forcats::fct_relevel(
-                name,
-                "True NB", sort(estimation_types)
-            ),
+            name = factor(as.character(name), levels = names(.colors)),
             thr_factor = factor(
                 threshold,
                 levels = thresholds,
@@ -322,7 +320,6 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
             ggplot2::aes(linetype = .type, group = .type)
         ) +
         ggplot2::geom_point(
-            # position = position_dodge(width = .025),
             ggplot2::aes(shape = .type, size = .type),
             stroke = 1.5
         ) +
@@ -339,7 +336,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::coord_cartesian(ylim = c(0, 1)) +
         ggplot2::labs(
             x = "Decision threshold",
-            y = "Empirical covarage\n(95% uncertainty intervals)",
+            y = "Empirical coverage\n(95% uncertainty intervals)",
             color = NULL,
             size = NULL,
             linetype = NULL,
@@ -364,7 +361,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         dplyr::mutate(
             name = factor(
                 as.character(name),
-                levels = sort(estimation_types)
+                levels = names(.colors)
             ),
             thr_factor = factor(
                 threshold,
@@ -422,8 +419,10 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ## scale absolute errors by maximum achievable NB
     if (isTRUE(surv)) {
         df$ape <- abs(df$abs_error) / df$true_incidence
+        .ylim <- c(0, NA)
     } else {
         df$ape <- abs(df$abs_error) / df$true_prevalence
+        .ylim <- c(0, .2)
     }
     p4 <- df %>%
         dplyr::filter(threshold <= .75) %>%
@@ -435,7 +434,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         dplyr::mutate(
             name = factor(
                 as.character(name),
-                levels = sort(estimation_types)
+                levels = names(.colors)
             ),
             thr_factor = factor(
                 threshold,
@@ -475,7 +474,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::facet_wrap(~setting_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::scale_fill_manual(values = .colors) +
-        ggplot2::scale_y_continuous(labels = scales::percent, limits = c(0, .2)) +
+        ggplot2::scale_y_continuous(labels = scales::percent, limits = .ylim) +
         ggplot2::theme(
             legend.position = c(0.075, 0.9)
         ) +
@@ -505,7 +504,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         dplyr::mutate(
             name = factor(
                 as.character(name),
-                levels = sort(estimation_types)
+                levels = names(.colors)
             ),
             thr_factor = factor(
                 threshold,
@@ -915,4 +914,23 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
     )
 
     return(simulation_results)
+}
+
+merge_survival_simulation_plots <- function(survival_simulation_plots, outdir) { # nolint
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
+    outdir <- str_path(outdir)
+    dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+    library(patchwork)
+    p1 <- survival_simulation_plots$abs_error +
+        ggplot2::labs(x = NULL) +
+        ggplot2::facet_wrap(~setting_label) +
+        ggplot2::theme(legend.position = c(0.12, 0.85))
+    p2 <- survival_simulation_plots$coverage
+    final_fig <- p1 / p2
+    ggplot2::ggsave(
+        str_path("{outdir}/survival-simulation-final-figure.png"),
+        final_fig,
+        width = 10, height = 8, dpi = 600
+    )
+    return(final_fig)
 }

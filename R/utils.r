@@ -374,20 +374,20 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
   )
 
   .cols <- c(
-    "Model-based decisions.Bayesian" = "#1B9E77",
-    "Model-based decisions.Frequentist" = "red",
-    "Treat all.Bayesian" = "gray40"
+    "Model-based decisions.Bayesian" = "#7570B3",
+    "Model-based decisions.Frequentist" = "#D95F02",
+    "Treat all.Bayesian" = "gray20"
   )
   .labels <- c(
-    "Model-based decisions (Bayesian)",
-    "Model-based decisions (Frequentist)",
-    "Treat all"
+    "Model-based decisions.Bayesian" = "Model-based decisions (Bayesian)",
+    "Model-based decisions.Frequentist" = "Model-based decisions (Frequentist)",
+    "Treat all.Bayesian" = "Treat all"
   )
 
   if (isTRUE(treat_all_rmda)) {
     .cols["Treat all.Frequentist"] <- "red"
-    .labels[3] <- "Treat all (Bayesian)"
-    .labels[4] <- "Treat all (Frequentist)"
+    .labels["Treat all.Bayesian"] <- "Treat all (Bayesian)"
+    .labels["Treat all.Frequentist"] <- "Treat all (Frequentist)"
   } else {
     comparison <- comparison %>%
       dplyr::filter(
@@ -404,7 +404,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
         fill = interaction(strategy, .type)
       )
     ) +
-    ggplot2::geom_ribbon(alpha = 0.2, aes(color = NULL)) +
+    ggplot2::geom_ribbon(alpha = 0.3, aes(color = NULL)) +
     ggplot2::geom_line(aes(lty = .type), show.legend = FALSE) +
     ggplot2::geom_hline(
       yintercept = 0,
@@ -414,11 +414,13 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
     ggplot2::coord_cartesian(ylim = c(.ymin, NA)) +
     ggplot2::scale_color_manual(
       values = .cols,
-      labels = .labels
+      labels = .labels,
+      breaks = names(.cols)
     ) +
     ggplot2::scale_fill_manual(
       values = .cols,
-      labels = .labels
+      labels = .labels,
+      breaks = names(.cols)
     ) +
     ggplot2::scale_linetype_manual(
       values = c("solid", "longdash")
