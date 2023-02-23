@@ -418,11 +418,13 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     ## scale absolute errors by maximum achievable NB
     if (isTRUE(surv)) {
-        df$ape <- abs(df$abs_error) / df$true_incidence
+        df$ape <- abs(df$abs_error) / df$.true_nb
         .ylim <- c(0, NA)
+        .title <- "Mean Absolute Percentage Error (MAPE)"
     } else {
         df$ape <- abs(df$abs_error) / df$true_prevalence
         .ylim <- c(0, .2)
+        .title <- "Average Percentage Error relative to max NB"
     }
     p4 <- df %>%
         dplyr::filter(threshold <= .75) %>%
@@ -480,7 +482,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) +
         ggplot2::labs(
             x = "Decision threshold",
-            title = "Average Percentage Error relative to max NB",
+            title = .title,
             y = NULL,
             color = NULL,
             fill = NULL
