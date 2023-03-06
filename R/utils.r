@@ -194,17 +194,20 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
     msg <- cli::col_blue("Estimating DCA with bayesDCA (default)")
     message(msg)
   }
+  dd <- df
+  dd[, "outcomes"][, 1] <- dd[, "outcomes"][, 1] / pred_time
   bdca_fit <- try(
     {
-      bayesDCA::dca_surv(
-        df,
+      bayesDCA::dca_surv_weibull(
+        dd,
         thresholds = thresholds,
-        prediction_time = pred_time,
+        prediction_time = 1,
         refresh = refresh,
-        prior_anchor = "prediction_time",
-        cutpoints = seq(0, max(df[["outcomes"]][, 1]), length = 10),
-        min_events = 0,
-        prior_scaling_factor = 10,
+        positivity_prior = c(1, 1),
+        mean_mu = 0,
+        sd_mu = 5,
+        mean_log_alpha = 1,
+        sd_log_alpha = 1.2,
         iter = 3000,
         cores = cores
       )
@@ -261,7 +264,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian (PEM)",
+          .type = "Bayesian (scaled)",
           strategy = "Model-based decisions"
         ),
       bdca_fit$summary$treat_all %>%
@@ -270,7 +273,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian (PEM)",
+          .type = "Bayesian (scaled)",
           strategy = "Treat all"
         )
     )

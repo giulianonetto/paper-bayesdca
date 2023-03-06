@@ -162,11 +162,12 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     )
     if (is.null(estimation_types)) {
         estimation_types <- c(
-            "Bayesian", "Frequentist"
+            "Bayesian", "Bayesian (scaled)", "Frequentist"
         )
         .colors <- c(
             "True NB" = "#1B9E77",
             "Bayesian" = "#7570B3",
+            "Bayesian (scaled)" = "red",
             "Frequentist" = "#D95F02"
         )
     } else {
