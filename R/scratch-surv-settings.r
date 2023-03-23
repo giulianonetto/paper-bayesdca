@@ -1,32 +1,31 @@
 library(tidyverse)
 library(survival)
-source("R/utils.r")
-ts <- validate_thresholds(
-    thresholds = seq(0, 1, .1)
-)
 
 {
-    setting <- get_simulation_settings_surv()[[2]]
+    source("R/utils.r")
+    setting <- get_simulation_settings_surv()$sim6
     d <- simulate_dca_population_surv(
         sim_setting = setting,
-        n_pop = 2e5, # ceiling(10000 / setting$event_fraction),
-        thresholds = ts,
-        .seed = 122445,
-        pred_time = 1,
+        n_pop = 5e4, # ceiling(10000 / setting$event_fraction),
+        thresholds = validate_thresholds(
+            thresholds = seq(0, 1, .1)
+        ),
+        .seed = 5689,
+        pred_time = 12,
         .verbose = TRUE
     )$df_pop
 }
 mean(d$survTime == 0)
 mean(d$obsTime == 0)
-hist(d$survTime, breaks = 200, xlim = c(0, 2.5))
-mean(d$survTime < .5)
-hist(d$censorTime, breaks = 200, xlim = c(0, 2.5))
-hist(d$obsTime, breaks = 200, xlim = c(0, 2.5))
-rms::survplot(rms::psm(Surv(obsTime, status) ~ 1, data = d), what = "hazard", xlim = c(1e-5, 2.5))
+hist(d$survTime, breaks = 200)
+mean(d$survTime >= 12)
+hist(d$censorTime, breaks = 200, add = T, col = "red")
+hist(d$obsTime, breaks = 200)
+rms::survplot(rms::psm(Surv(obsTime, status) ~ 1, data = d), what = "hazard")
 survfit(Surv(obsTime, status) ~ 1, data = d) %>%
     survminer::ggsurvplot(
-        xlim = c(0, 2.2),
-        break.time.by = .3,
+        xlim = c(0, 50),
+        break.time.by = 10,
         surv.median.line = "hv",
         risk.table = "abs_pct",
         cumevents = TRUE,
@@ -35,7 +34,6 @@ survfit(Surv(obsTime, status) ~ 1, data = d) %>%
     )
 median(survfit(Surv(obsTime, status) ~ 1, data = d))
 mean(d$status)
-mean(d$survTime >= 1)
 coxph(Surv(obsTime, status) ~ x1 + x2, data = d) %>%
     summary()
 

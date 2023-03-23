@@ -153,7 +153,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
 #' @param global_simulation_seed Global seed used for simulation (from `_targets.R` file)
 #' @import tidyverse
 plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed,
-                                    surv = FALSE, estimation_types = NULL) {
+                                    surv = FALSE, estimation_types = NULL, .colors = NULL) {
     ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
     dir.create(
         outdir,
@@ -162,18 +162,22 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     )
     if (is.null(estimation_types)) {
         estimation_types <- c(
-            "Bayesian", "Bayesian (scaled)", "Frequentist"
+            "Bayesian", "Bayesian 2", "Frequentist"
         )
+    }
+
+    if (is.null(.colors)) {
         .colors <- c(
             "True NB" = "#1B9E77",
             "Bayesian" = "#7570B3",
-            "Bayesian (scaled)" = "red",
+            "Bayesian 2" = "red",
             "Frequentist" = "#D95F02"
         )
-    } else {
-        stop("Not implemented")
     }
 
+    stopifnot(all(estimation_types %in% names(.colors)))
+
+    .colors <- .colors[names(.colors) %in% estimation_types]
     n_types <- length(estimation_types)
     simulation_results <- simulation_results[
         simulation_results$.type %in% estimation_types,
@@ -711,7 +715,7 @@ plot_case_study_results <- function(fit, outdir) {
     )
     suppressMessages({
         suppressWarnings({
-            pairwise_delta_plot <- plot_delta(
+            pairwise_delta_plot <- bayesDCA::plot_delta(
                 fit,
                 type = "pairwise",
                 models_or_tests = strategies,
@@ -892,7 +896,7 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
                 }
                 .simulation_output <- run_dca_simulation_surv(
                     df_sample = df_sample,
-                    thresholds = thresholds,
+                    thresholds = thresholds[thresholds < max(df_sample$model_predictions)],
                     pred_time = pred_time,
                     true_nb = setting_population$true_nb,
                     true_incidence = .true_incidence,

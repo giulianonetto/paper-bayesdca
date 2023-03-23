@@ -74,3 +74,18 @@ plot(fitw) +
 
 
 summary(survival::survfit(outcomes ~ 1, data = fit$.data), times = 12)
+
+system.time({
+    fitw2.2 <- fitw2$.data %>%
+        bayesDCA::dca_surv_weibull2(
+            prediction_time = 12,
+            iter = 3000,
+            cores = 2,
+            chains = 2,
+            refresh = 1,
+            thresholds = seq(0, .9, length = 51),
+            prediction_time_scaling = TRUE,
+            prior_only = FALSE,
+            keep_fit = TRUE
+        )
+})

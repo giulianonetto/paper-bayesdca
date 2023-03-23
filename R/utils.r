@@ -194,28 +194,8 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
     msg <- cli::col_blue("Estimating DCA with bayesDCA (default)")
     message(msg)
   }
-  dd <- df
-  dd[, "outcomes"][, 1] <- dd[, "outcomes"][, 1] / pred_time
-  bdca_fit <- try(
-    {
-      bayesDCA::dca_surv_weibull(
-        dd,
-        thresholds = thresholds,
-        prediction_time = 1,
-        refresh = refresh,
-        positivity_prior = c(1, 1),
-        mean_mu = 0,
-        sd_mu = 5,
-        mean_log_alpha = 1,
-        sd_log_alpha = 1.2,
-        iter = 3000,
-        cores = cores
-      )
-    },
-    silent = TRUE
-  )
 
-  bdca_fit2 <- try(
+  bdca_fit <- try(
     {
       bayesDCA::dca_surv_weibull(
         df,
@@ -226,7 +206,26 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         mean_mu = 0,
         sd_mu = 5,
         mean_log_alpha = 1,
-        sd_log_alpha = 1.2,
+        sd_log_alpha = 2,
+        prediction_time_scaling = FALSE,
+        iter = 3000,
+        cores = cores
+      )
+    },
+    silent = TRUE
+  )
+
+  bdca_fit2 <- try(
+    {
+      bayesDCA::dca_surv_weibull2(
+        df,
+        thresholds = thresholds,
+        prediction_time = pred_time,
+        refresh = refresh,
+        positivity_prior = c(1, 1),
+        prior_sd_alpha = 100,
+        prior_sd_sigma = 100,
+        prediction_time_scaling = FALSE,
         iter = 3000,
         cores = cores
       )
@@ -264,7 +263,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian (scaled)",
+          .type = "Bayesian",
           strategy = "Model-based decisions"
         ),
       bdca_fit$summary$treat_all %>%
@@ -273,7 +272,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian (scaled)",
+          .type = "Bayesian",
           strategy = "Treat all"
         )
     )
@@ -289,7 +288,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian",
+          .type = "Bayesian 2",
           strategy = "Model-based decisions"
         ),
       bdca_fit2$summary$treat_all %>%
@@ -298,7 +297,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .lower := `2.5%`, .upper := `97.5%`
         ) %>%
         dplyr::mutate(
-          .type = "Bayesian",
+          .type = "Bayesian 2",
           strategy = "Treat all"
         )
     )
@@ -946,15 +945,59 @@ get_simulation_settings_surv <- function() {
       median_surv = 4 # months
     ),
     sim2 = list(
+      true_beta = c(log(1.3), log(0.7)),
+      beta_hat = c(log(1.3), log(0.7)) * 1.01,
+      lambda = 0.12,
+      gamma = 1.07,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.7,
+      one_year_survival_rate = 0.2,
+      concord = 0.6,
+      median_surv = 5 # months
+    ),
+    sim3 = list(
+      true_beta = c(log(1.3), log(0.7)),
+      beta_hat = c(log(1.3), log(0.7)) * 1.01,
+      lambda = 0.12,
+      gamma = 0.7,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.46,
+      one_year_survival_rate = 0.5,
+      concord = 0.6,
+      median_surv = 12 # months
+    ),
+    sim4 = list(
+      true_beta = c(log(1.95), log(0.05)),
+      beta_hat = c(log(1.95), log(0.05)) * 1.25,
+      lambda = 4e-4,
+      gamma = 4.6,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.75,
+      one_year_survival_rate = 0.1,
+      concord = 0.9,
+      median_surv = 5 # months
+    ),
+    sim5 = list(
       true_beta = c(log(1.95), log(0.05)),
       beta_hat = c(log(1.95), log(0.05)) * 1.25,
       lambda = 4e-4,
       gamma = 4,
       max_follow_up = 12 * 2,
-      event_fraction = 0.66,
+      event_fraction = 0.67,
       one_year_survival_rate = 0.2,
       concord = 0.9,
       median_surv = 6 # months
+    ),
+    sim6 = list(
+      true_beta = c(log(1.95), log(0.05)),
+      beta_hat = c(log(1.95), log(0.05)) * 1.25,
+      lambda = 4e-4,
+      gamma = 2.9,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.44,
+      one_year_survival_rate = 0.5,
+      concord = 0.9,
+      median_surv = 12 # months
     )
   )
 
