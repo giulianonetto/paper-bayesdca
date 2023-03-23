@@ -12,7 +12,7 @@ options(tidyverse.quiet = TRUE)
 simulation_thresholds <- c(
   1e-9, 0.001, 0.01,
   0.05, 0.1, 0.25,
-  0.5, 0.75, 0.9
+  0.5, 0.75
 )
 
 # other simulation settings
@@ -76,9 +76,9 @@ list(
   tar_target(
     name = simulation_survival_outcomes,
     command = run_simulation_study_surv(
-      n_sim = 5,
+      n_sim = n_sim,
       thresholds = simulation_thresholds,
-      n_pop = 5e4,
+      n_pop = n_pop,
       pred_time = 12,
       outdir = str_path("output/simulation-study-survival3"),
       overwrite = FALSE,
