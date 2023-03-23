@@ -61,3 +61,8 @@ setting*.rds
 *.pbs
 pbs/
 *.Rout
+
+# other
+*poster*
+output/simulation-study-survival2/
+output/simulation-study-survival3/
