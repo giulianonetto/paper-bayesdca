@@ -1,8 +1,7 @@
 import::from(rmda, rmda_data = dcaData)
 import::from(dcurves, dcurves_dca = dca)
 if (!require(bayesDCA)) {
-  devtools::install_github("giulianonetto/bayesdca")
-  require(bayesDCA)
+  stop("Make sure `bayesDCA` is installed.")
 }
 
 #' Get maximum threshold allowed
@@ -195,9 +194,10 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
     message(msg)
   }
 
+  t0 <- proc.time()["elapsed"]
   bdca_fit <- try(
     {
-      bayesDCA::dca_surv_weibull(
+      bayesDCA::dca_surv(
         df,
         thresholds = thresholds,
         prediction_time = pred_time,
@@ -205,38 +205,41 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         positivity_prior = c(1, 1),
         mean_mu = 0,
         sd_mu = 5,
-        mean_log_alpha = 1,
-        sd_log_alpha = 2,
-        prediction_time_scaling = FALSE,
+        mean_log_alpha = 0,
+        sd_log_alpha = 1.25,
         iter = 3000,
         cores = cores
       )
     },
     silent = TRUE
   )
+  time_bayes <- proc.time()["elapsed"] - t0
 
+  t0 <- proc.time()["elapsed"]
   bdca_fit2 <- try(
     {
-      bayesDCA::dca_surv_weibull2(
+      bayesDCA::dca_surv2(
         df,
         thresholds = thresholds,
         prediction_time = pred_time,
         refresh = refresh,
         positivity_prior = c(1, 1),
-        prior_sd_alpha = 100,
-        prior_sd_sigma = 100,
-        prediction_time_scaling = FALSE,
+        prior_scale_alpha = 1,
+        prior_scale_sigma = 100,
         iter = 3000,
         cores = cores
       )
     },
     silent = TRUE
   )
+  time_bayes2 <- proc.time()["elapsed"] - t0
 
   if (isFALSE(.quiet)) {
     msg <- cli::col_blue("Estimating DCA with dcurves")
     message(msg)
   }
+
+  t0 <- proc.time()["elapsed"]
   dcurves_fit <- try(
     {
       dcurves::dca(
@@ -248,6 +251,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
     },
     silent = TRUE
   )
+  time_freq <- proc.time()["elapsed"] - t0
 
   # get results into standardized data.frames
   if (isFALSE(.quiet)) {
@@ -275,7 +279,8 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .type = "Bayesian",
           strategy = "Treat all"
         )
-    )
+    ) %>%
+      dplyr::mutate(runtime = time_bayes)
   } else {
     res_bdca <- data.frame()
   }
@@ -300,7 +305,8 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           .type = "Bayesian 2",
           strategy = "Treat all"
         )
-    )
+    ) %>%
+      dplyr::mutate(runtime = time_bayes2)
   } else {
     res_bdca2 <- data.frame()
   }
@@ -323,7 +329,8 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         estimate := net_benefit,
         .lower, .upper,
         .type, strategy
-      )
+      ) %>%
+      dplyr::mutate(runtime = time_freq)
   } else {
     res_dcurves <- data.frame()
   }

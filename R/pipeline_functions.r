@@ -832,7 +832,7 @@ plot_case_study_results <- function(fit, outdir) {
 
 run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
                                       outdir, overwrite, .seed,
-                                      pred_time = 1, .workers = 2, .verbose = FALSE) {
+                                      pred_time = 12, .workers = 2, .verbose = FALSE) {
     simulation_results_file <- str_path("{outdir}/simulation_results_surv.tsv")
     if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
         msg <- cli::col_br_red("Simulation results (survival) exist and will not be overwritten")
@@ -896,7 +896,7 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
                 }
                 .simulation_output <- run_dca_simulation_surv(
                     df_sample = df_sample,
-                    thresholds = thresholds[thresholds < max(df_sample$model_predictions)],
+                    thresholds = thresholds,
                     pred_time = pred_time,
                     true_nb = setting_population$true_nb,
                     true_incidence = .true_incidence,
