@@ -76,11 +76,11 @@ list(
   tar_target(
     name = simulation_survival_outcomes,
     command = run_simulation_study_surv(
-      n_sim = n_sim,
+      n_sim = 2000,
       thresholds = simulation_thresholds,
       n_pop = n_pop,
       pred_time = 12,
-      outdir = str_path("output/simulation-study-survival3"),
+      outdir = str_path("output/simulation-study-survival4"),
       overwrite = FALSE,
       .workers = workers,
       .seed = .seed,
@@ -91,7 +91,7 @@ list(
     name = plot_simulation_survival_outcomes,
     command = plot_simulation_results(
       simulation_results = simulation_survival_outcomes,
-      outdir = str_path("output/simulation-study-survival3"),
+      outdir = str_path("output/simulation-study-survival4"),
       surv = TRUE,
       global_simulation_seed = .seed
     )
@@ -100,7 +100,7 @@ list(
     name = get_final_figure_survival_simulation,
     command = merge_survival_simulation_plots(
       survival_simulation_plots = plot_simulation_survival_outcomes,
-      outdir = str_path("output/simulation-study-survival3")
+      outdir = str_path("output/simulation-study-survival4")
     )
   )
 )

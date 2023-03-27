@@ -177,7 +177,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     stopifnot(all(estimation_types %in% names(.colors)))
 
-    .colors <- .colors[names(.colors) %in% estimation_types]
+    .colors <- .colors[names(.colors) %in% c(estimation_types, "True NB")]
     n_types <- length(estimation_types)
     simulation_results <- simulation_results[
         simulation_results$.type %in% estimation_types,
@@ -293,7 +293,6 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     )
 
     # 95% intervals coverage
-
     p2 <- df %>%
         dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
         dplyr::group_by(threshold, .type, setting_label) %>%
@@ -419,9 +418,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         width = 15, height = 6.5, dpi = 600
     )
 
-    # MAPE
-
-    ## scale absolute errors by maximum achievable NB
+    # MAPE -- scale absolute errors by maximum achievable NB
     if (isTRUE(surv)) {
         df$ape <- abs(df$abs_error) / df$.true_nb
         .ylim <- c(0, NA)
@@ -431,6 +428,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         .ylim <- c(0, .2)
         .title <- "Average Percentage Error relative to max NB"
     }
+    # plot mape
     p4 <- df %>%
         dplyr::filter(threshold <= .75) %>%
         dplyr::select(
@@ -557,8 +555,22 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         width = 15, height = 6.5, dpi = 600
     )
 
+    # runtime
+    p6 <- df %>%
+        dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
+        ggplot2::ggplot(ggplot2::aes(.type, runtime)) +
+        ggplot2::geom_boxplot(alpha = 0) +
+        ggplot2::geom_jitter() +
+        ggplot2::facet_wrap(~setting_label) +
+        ggplot2::labs(x = NULL, y = "Runtime (seconds)")
 
-    return(list(point_estimates = p1, coverage = p2, abs_error = p3, ci_width = p4))
+    ggplot2::ggsave(
+        str_path("{outdir}/runtime.png"),
+        p6,
+        width = 15, height = 6.5, dpi = 600
+    )
+
+    return(list(point_estimates = p1, coverage = p2, abs_error = p3, mape = p4, ci_width = p5, runtime = p6))
 }
 
 #' Run Baysian DCA case study (Results' subsection 03)
