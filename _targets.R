@@ -80,8 +80,8 @@ list(
       thresholds = simulation_thresholds,
       n_pop = n_pop,
       pred_time = 12,
-      outdir = str_path("output/simulation-study-survival4"),
-      overwrite = FALSE,
+      outdir = str_path("output/simulation-study-survival5"),
+      overwrite = TRUE,
       .workers = workers,
       .seed = .seed,
       .verbose = TRUE
