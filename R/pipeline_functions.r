@@ -558,9 +558,11 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     # runtime
     p6 <- df %>%
         dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
+        dplyr::select(.type, setting_label, runtime, simulation_run_label) %>%
+        unique() %>%
         ggplot2::ggplot(ggplot2::aes(.type, runtime)) +
         ggplot2::geom_boxplot(alpha = 0) +
-        ggplot2::geom_jitter() +
+        ggbeeswarm::geom_quasirandom() +
         ggplot2::facet_wrap(~setting_label) +
         ggplot2::labs(x = NULL, y = "Runtime (seconds)")
 
