@@ -91,7 +91,7 @@ list(
     name = plot_simulation_survival_outcomes,
     command = plot_simulation_results(
       simulation_results = simulation_survival_outcomes,
-      outdir = str_path("output/simulation-study-survival4"),
+      outdir = str_path("output/simulation-study-survival5"),
       surv = TRUE,
       global_simulation_seed = .seed
     )
@@ -100,7 +100,7 @@ list(
     name = get_final_figure_survival_simulation,
     command = merge_survival_simulation_plots(
       survival_simulation_plots = plot_simulation_survival_outcomes,
-      outdir = str_path("output/simulation-study-survival4")
+      outdir = str_path("output/simulation-study-survival5")
     )
   )
 )
