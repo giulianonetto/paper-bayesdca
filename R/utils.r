@@ -207,7 +207,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         sd_mu = 5,
         mean_log_alpha = 0,
         sd_log_alpha = 1.25,
-        iter = 6000,
+        iter = 5000,
         cores = cores
       )
     },
@@ -224,9 +224,10 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         prediction_time = pred_time,
         refresh = refresh,
         positivity_prior = c(1, 1),
-        prior_scale_alpha = 1,
+        prior_shape_alpha = 1,
+        prior_rate_alpha = 1,
         prior_scale_sigma = 10,
-        iter = 6000,
+        iter = 5000,
         cores = cores
       )
     },

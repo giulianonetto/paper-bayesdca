@@ -76,7 +76,7 @@ list(
   tar_target(
     name = simulation_survival_outcomes,
     command = run_simulation_study_surv(
-      n_sim = 2000,
+      n_sim = 1000,
       thresholds = simulation_thresholds,
       n_pop = n_pop,
       pred_time = 12,
