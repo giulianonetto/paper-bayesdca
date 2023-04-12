@@ -166,6 +166,73 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
   return(res_all)
 }
 
+#' Extract posterior summaries for `BayesDCASurv` object
+summarise_bdca_surv_pars <- function(fit) {
+  surv <- rstan::summary(fit$fit, pars = "St_positives")$summary %>%
+    dplyr::as_tibble(rownames = "par_name") %>%
+    dplyr::select(-c(se_mean, sd, n_eff, Rhat)) %>% # nolint
+    dplyr::rename(surv_estimate := mean) %>% # nolint
+    dplyr::mutate(
+      threshold_ix = stringr::str_extract(par_name, "\\d+\\]") %>% # nolint
+        stringr::str_remove(string = ., pattern = "\\]") %>%
+        as.integer(),
+      model_or_test_ix = stringr::str_extract(par_name, "\\[\\d+") %>% # nolint
+        stringr::str_remove(string = ., pattern = "\\[") %>%
+        as.integer(),
+      threshold = fit$thresholds[threshold_ix],
+      model_or_test_name = fit$model_or_test_names[model_or_test_ix],
+      par_name = stringr::str_extract(par_name, "\\w+")
+    ) %>%
+    dplyr::select(
+      threshold, surv_estimate,
+      surv_lower := `2.5%`, surv_upper := `97.5%`
+    )
+  pos <- fit$summary$positivity %>%
+    dplyr::select(
+      threshold, pos_estimate := estimate,
+      pos_lower := `2.5%`, pos_upper := `97.5%`
+    )
+  dplyr::inner_join(surv, pos, by = "threshold")
+}
+
+#' Get results from bayesDCA surv
+get_results_surv_bdca <- function(fit, type_label) {
+  nb_summary <- fit$summary$net_benefit %>%
+    dplyr::select(
+      threshold, estimate,
+      .lower := `2.5%`, .upper := `97.5%`
+    ) %>%
+    dplyr::mutate(
+      .type = type_label,
+      strategy = "Model-based decisions"
+    )
+  nb_pars_summary <- summarise_bdca_surv_pars(fit)
+  tall_summary <- fit$summary$treat_all %>%
+    dplyr::select(
+      threshold, estimate,
+      .lower := `2.5%`, .upper := `97.5%`
+    ) %>%
+    dplyr::mutate(
+      .type = type_label,
+      strategy = "Treat all"
+    )
+  tall_pars_summary <- fit$summary$overall_surv %>%
+    dplyr::select(
+      surv_estimate := estimate,
+      surv_lower := `2.5%`, surv_upper := `97.5%`
+    ) %>%
+    dplyr::mutate(
+      pos_estimate = 1, pos_lower = 1, pos_upper = 1
+    )
+  res_bdca <- dplyr::bind_rows(
+    left_join(nb_summary, nb_pars_summary, by = "threshold"),
+    bind_cols(tall_summary, tall_pars_summary)
+  )
+
+  return(res_bdca)
+}
+
+
 #' Compare DCA (Survival) from `bayesDCa` and `dcurves` packages
 #'
 #' @param dataset `data.frame` with outcomes and predictor of outcome
@@ -201,12 +268,11 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         df,
         thresholds = thresholds,
         prediction_time = pred_time,
+        keep_fit = TRUE,
         refresh = refresh,
         positivity_prior = c(1, 1),
-        mean_mu = 0,
-        sd_mu = 5,
-        mean_log_alpha = 0,
-        sd_log_alpha = 1.25,
+        prior_scale_alpha = 1,
+        prior_scale_sigma = 10,
         iter = 5000,
         cores = cores
       )
@@ -222,6 +288,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
         df,
         thresholds = thresholds,
         prediction_time = pred_time,
+        keep_fit = TRUE,
         refresh = refresh,
         positivity_prior = c(1, 1),
         prior_shape_alpha = 1,
@@ -261,52 +328,14 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
   }
 
   if (class(bdca_fit) != "try-error") {
-    res_bdca <- dplyr::bind_rows(
-      bdca_fit$summary$net_benefit %>%
-        dplyr::select(
-          threshold, estimate,
-          .lower := `2.5%`, .upper := `97.5%`
-        ) %>%
-        dplyr::mutate(
-          .type = "Bayesian",
-          strategy = "Model-based decisions"
-        ),
-      bdca_fit$summary$treat_all %>%
-        dplyr::select(
-          threshold, estimate,
-          .lower := `2.5%`, .upper := `97.5%`
-        ) %>%
-        dplyr::mutate(
-          .type = "Bayesian",
-          strategy = "Treat all"
-        )
-    ) %>%
+    res_bdca <- get_results_surv_bdca(fit = bdca_fit, type_label = "Bayesian") %>%
       dplyr::mutate(runtime = time_bayes)
   } else {
     res_bdca <- data.frame()
   }
 
   if (class(bdca_fit2) != "try-error") {
-    res_bdca2 <- dplyr::bind_rows(
-      bdca_fit2$summary$net_benefit %>%
-        dplyr::select(
-          threshold, estimate,
-          .lower := `2.5%`, .upper := `97.5%`
-        ) %>%
-        dplyr::mutate(
-          .type = "Bayesian 2",
-          strategy = "Model-based decisions"
-        ),
-      bdca_fit2$summary$treat_all %>%
-        dplyr::select(
-          threshold, estimate,
-          .lower := `2.5%`, .upper := `97.5%`
-        ) %>%
-        dplyr::mutate(
-          .type = "Bayesian 2",
-          strategy = "Treat all"
-        )
-    ) %>%
+    res_bdca2 <- get_results_surv_bdca(fit = bdca_fit2, type_label = "Bayesian 2") %>%
       dplyr::mutate(runtime = time_bayes2)
   } else {
     res_bdca2 <- data.frame()
@@ -759,17 +788,29 @@ run_dca_simulation_surv <- function(df_sample,
     true_nb %>%
       dplyr::select(
         threshold := .thr,
-        .true_nb := nb
+        .true_nb := nb,
+        .true_pos := positivity,
+        .true_surv := conditional_survival
       ),
     by = "threshold"
   ) %>%
     dplyr::mutate(
       abs_error = abs(estimate - .true_nb),
       truth_within_interval = .true_nb >= .lower & .true_nb <= .upper,
+      truth_within_interval_surv = .true_surv >= surv_lower & .true_surv <= surv_upper,
+      truth_within_interval_pos = .true_pos >= pos_lower & .true_pos <= pos_upper,
+      error_surv = surv_estimate - .true_surv,
+      error_pos = pos_estimate - .true_pos,
       true_incidence = true_incidence,
       .simulation_seed = .seed
     ) %>%
-    dplyr::filter(strategy != "Treat all")
+    dplyr::select(
+      threshold, estimate, .lower, .upper, .type, strategy,
+      .true_nb, abs_error, truth_within_interval,
+      dplyr::contains("surv_"), dplyr::contains("_surv"),
+      dplyr::contains("pos_"), dplyr::contains("_pos"), runtime,
+      dplyr::everything()
+    )
 
   if (!is.null(.setting_label)) {
     result$setting_label <- unique(df_sample$setting_label)
@@ -777,7 +818,6 @@ run_dca_simulation_surv <- function(df_sample,
   if (!is.null(.run_label)) {
     result$simulation_run_label <- unique(df_sample$simulation_run_label)
   }
-
 
   if (!is.null(result_path)) {
     readr::write_tsv(
@@ -940,6 +980,8 @@ test_sim_setting <- function(.sim, n = 1e5, .return = FALSE) {
 
 #' Get simulation survival settings (Results' subsection 3)
 get_simulation_settings_surv <- function() {
+  # gamma is shape
+  # lambda is scale
   simulation_settings <- list(
     sim1 = list(
       true_beta = c(log(1.3), log(0.7)),
@@ -1006,10 +1048,43 @@ get_simulation_settings_surv <- function() {
       one_year_survival_rate = 0.5,
       concord = 0.9,
       median_surv = 12 # months
+    ),
+    sim7 = list(
+      true_beta = c(log(1.95), log(0.001)),
+      beta_hat = c(log(1.95), log(0.001)) * 1.25,
+      lambda = 4e-4,
+      gamma = 6.5,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.75,
+      one_year_survival_rate = 0.1,
+      concord = 0.95,
+      median_surv = 3 # months
+    ),
+    sim8 = list(
+      true_beta = c(log(1.95), log(0.001)),
+      beta_hat = c(log(1.95), log(0.001)) * 1.25,
+      lambda = 4e-4,
+      gamma = 5.4,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.67,
+      one_year_survival_rate = 0.2,
+      concord = 0.95,
+      median_surv = 4 # months
+    ),
+    sim9 = list(
+      true_beta = c(log(1.95), log(0.001)),
+      beta_hat = c(log(1.95), log(0.001)) * 1.25,
+      lambda = 4e-4,
+      gamma = 3.1,
+      max_follow_up = 12 * 2,
+      event_fraction = 0.44,
+      one_year_survival_rate = 0.5,
+      concord = 0.95,
+      median_surv = 12 # months
     )
   )
 
-  return(simulation_settings)
+  return(simulation_settings[c("sim4", "sim7")])
 }
 
 #' Generate survival data using simsurv package
@@ -1027,8 +1102,8 @@ gen_surv_data <- function(lambda,
   )
   df <- simsurv::simsurv(
     dist = "weibull",
-    lambdas = lambda,
-    gammas = gamma,
+    lambdas = c(lambda),
+    gammas = c(gamma),
     x = predictors,
     betas = setNames(true_beta, c("x1", "x2")),
     maxt = .Machine$double.max - 1e-9,
