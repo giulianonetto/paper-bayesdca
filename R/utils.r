@@ -1085,7 +1085,7 @@ get_simulation_settings_surv <- function() {
     )
   )
 
-  return(simulation_settings[c("sim4", "sim7")])
+  return(simulation_settings)
 }
 
 #' Generate survival data using simsurv package

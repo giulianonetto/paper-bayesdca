@@ -16,7 +16,7 @@ simulation_thresholds <- c(
 )
 
 # other simulation settings
-n_sim <- 500
+n_sim <- 1000
 n_pop <- 1e6
 workers <- 32
 
