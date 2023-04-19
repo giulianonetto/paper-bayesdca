@@ -286,18 +286,19 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
   t0 <- proc.time()["elapsed"]
   bdca_fit2 <- try(
     {
-      bayesDCA::dca_surv2(
-        df,
-        thresholds = thresholds,
-        prediction_time = pred_time,
-        keep_fit = TRUE,
-        refresh = refresh,
-        positivity_prior_pars = c(1, 1),
-        shape_prior_pars = c(20, 20),
-        scale_prior_pars = c(30, 0, 100),
-        iter = 4000,
-        cores = cores
-      )
+      log("a")
+      # bayesDCA::dca_surv2(
+      #   df,
+      #   thresholds = thresholds,
+      #   prediction_time = pred_time,
+      #   keep_fit = TRUE,
+      #   refresh = refresh,
+      #   positivity_prior_pars = c(1, 1),
+      #   shape_prior_pars = c(20, 20),
+      #   scale_prior_pars = c(30, 0, 100),
+      #   iter = 4000,
+      #   cores = cores
+      # )
     },
     silent = TRUE
   )
