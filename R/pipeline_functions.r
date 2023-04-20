@@ -170,7 +170,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         .colors <- c(
             "True NB" = "#1B9E77",
             "Bayesian" = "#7570B3",
-            "Bayesian 2" = "red",
+            # "Bayesian 2" = "red",
             "Frequentist" = "#D95F02"
         )
     }
@@ -190,6 +190,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
                 "AUC ", .x$auc, ", prevalence ", round(.x$prev * 100), "%"
             )
         )
+        plot_height <- 6.5
     } else {
         setting_labels_pretty <- purrr::map_chr(
             get_simulation_settings_surv(),
@@ -200,6 +201,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
                 "%"
             )
         )
+        plot_height <- 8.5
     }
 
     df <- simulation_results %>%
@@ -289,7 +291,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/point_estimates_distributions.png"),
         p1,
-        width = 15, height = 6.5, dpi = 600
+        width = 15, height = plot_height, dpi = 600
     )
 
     # 95% intervals coverage
@@ -364,7 +366,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/empirical_coverage.png"),
         p2,
-        width = 15, height = 8.5, dpi = 600
+        width = 15, height = plot_height, dpi = 600
     )
 
     # raw error
@@ -429,7 +431,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/point_estimates_error.png"),
         p3,
-        width = 15, height = 6.5, dpi = 600
+        width = 15, height = plot_height, dpi = 600
     )
 
     # MAPE -- scale absolute errors by maximum achievable NB
@@ -508,7 +510,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/average_error.png"),
         p4,
-        width = 15, height = 6.5, dpi = 600
+        width = 15, height = plot_height, dpi = 600
     )
 
     # ci width
@@ -566,7 +568,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/ci_width.png"),
         p5,
-        width = 15, height = 6.5, dpi = 600
+        width = 15, height = plot_height, dpi = 600
     )
 
     # runtime
@@ -583,7 +585,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/runtime.png"),
         p6,
-        width = 15, height = 6.5, dpi = 600
+        width = 15, height = plot_height, dpi = 600
     )
 
     return(list(point_estimates = p1, coverage = p2, abs_error = p3, mape = p4, ci_width = p5, runtime = p6))
