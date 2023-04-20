@@ -293,12 +293,23 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     )
 
     # 95% intervals coverage
+    n_types <- df %>%
+        dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
+        dplyr::pull(.type) %>%
+        dplyr::n_distinct()
+
     p2 <- df %>%
         dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
         dplyr::group_by(threshold, .type, setting_label) %>%
         dplyr::summarise(
-            cov = mean(truth_within_interval),
+            cov = list(binom::binom.wilson(sum(truth_within_interval), n())),
             .groups = "drop"
+        ) %>%
+        tidyr::unnest_wider(cov) %>%
+        dplyr::rename(
+            cov := mean,
+            cov_lower := lower,
+            cov_upper := upper
         ) %>%
         dplyr::mutate(
             .type = factor(
@@ -323,8 +334,11 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::geom_line(
             ggplot2::aes(linetype = .type, group = .type)
         ) +
-        ggplot2::geom_point(
-            ggplot2::aes(shape = .type, size = .type),
+        ggplot2::geom_pointrange(
+            ggplot2::aes(
+                ymin = cov_lower, ymax = cov_upper,
+                shape = .type, size = .type
+            ),
             stroke = 1.5
         ) +
         ggplot2::facet_wrap(~setting_label) +
@@ -333,7 +347,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::scale_shape_manual(values = rep(19, n_types)) +
-        ggplot2::scale_size_manual(values = c(1, 2 / 3, 1 / 3) * 3) +
+        ggplot2::scale_size_manual(values = c(1, 2 / 3, 1 / 3) * n_types) +
         ggplot2::theme(
             legend.position = c(.12, .135)
         ) +
@@ -350,7 +364,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/empirical_coverage.png"),
         p2,
-        width = 15, height = 5.5, dpi = 600
+        width = 15, height = 8.5, dpi = 600
     )
 
     # raw error
