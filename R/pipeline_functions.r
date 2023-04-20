@@ -170,7 +170,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         .colors <- c(
             "True NB" = "#1B9E77",
             "Bayesian" = "#7570B3",
-            # "Bayesian 2" = "red",
+            "Bayesian 2" = "red",
             "Frequentist" = "#D95F02"
         )
     }
