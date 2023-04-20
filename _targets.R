@@ -81,7 +81,7 @@ list(
       n_pop = n_pop,
       pred_time = 12,
       outdir = str_path("output/simulation-study-survival11"),
-      overwrite = TRUE,
+      overwrite = FALSE,
       .workers = workers,
       .seed = .seed,
       .verbose = TRUE
