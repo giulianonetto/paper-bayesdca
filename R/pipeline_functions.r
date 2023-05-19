@@ -622,7 +622,7 @@ run_case_study <- function(thresholds, .seed) {
 
     # Fit Bayesian Decision Curve Analysis ----
 
-    fit <- bayesDCA::dca(d, thresholds = thresholds, cores = 4)
+    fit <- bayesDCA::dca(d, thresholds = thresholds)
 
     return(fit)
 }
@@ -644,7 +644,7 @@ plot_case_study_results <- function(fit, outdir) {
         "model_predictions" = "ADNEX",
         "binary_test" = "Standard of Care test"
     )
-    dca_plot <- bayesDCA:::plot.BayesDCAList(
+    dca_plot <- bayesDCA:::plot.BayesDCA(
         fit,
         labels = .labels
     ) +
@@ -748,7 +748,7 @@ plot_case_study_results <- function(fit, outdir) {
             pairwise_delta_plot <- bayesDCA::plot_delta(
                 fit,
                 type = "pairwise",
-                models_or_tests = strategies,
+                strategies = strategies,
                 labels = .labels[1:2]
             ) +
                 ggplot2::coord_cartesian(ylim = c(-.1, .1)) +

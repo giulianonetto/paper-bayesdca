@@ -62,9 +62,7 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
   }
   bdca_fit <- bayesDCA::dca(
     df,
-    thresholds = thresholds,
-    refresh = refresh,
-    cores = cores
+    thresholds = thresholds
   )
 
   if (isTRUE(show_informative_prior)) {
@@ -74,11 +72,7 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
     }
     bdca_fit_informative <- bayesDCA::dca(
       df,
-      thresholds = thresholds,
-      refresh = refresh,
-      cores = cores,
-      iter = 3000,
-      chains = cores
+      thresholds = thresholds
     )
   }
 
@@ -176,23 +170,24 @@ summarise_bdca_surv_pars <- function(fit) {
       threshold_ix = stringr::str_extract(par_name, "\\d+\\]") %>% # nolint
         stringr::str_remove(string = ., pattern = "\\]") %>%
         as.integer(),
-      model_or_test_ix = stringr::str_extract(par_name, "\\[\\d+") %>% # nolint
+      strategy_ix = stringr::str_extract(par_name, "\\[\\d+") %>% # nolint
         stringr::str_remove(string = ., pattern = "\\[") %>%
         as.integer(),
       threshold = fit$thresholds[threshold_ix],
-      model_or_test_name = fit$model_or_test_names[model_or_test_ix],
+      decision_strategy_name = fit$strategies[strategy_ix],
       par_name = stringr::str_extract(par_name, "\\w+")
     ) %>%
     dplyr::select(
-      threshold, surv_estimate,
+      threshold, decision_strategy_name, surv_estimate,
       surv_lower := `2.5%`, surv_upper := `97.5%`
     )
   pos <- fit$summary$positivity %>%
     dplyr::select(
-      threshold, pos_estimate := estimate,
+      threshold, decision_strategy_name,
+      pos_estimate := estimate,
       pos_lower := `2.5%`, pos_upper := `97.5%`
     )
-  dplyr::inner_join(surv, pos, by = "threshold")
+  dplyr::inner_join(surv, pos, by = c("threshold", "decision_strategy_name"))
 }
 
 #' Get results from bayesDCA surv

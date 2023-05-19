@@ -64,5 +64,8 @@ pbs/
 
 # other
 *poster*
-output/simulation-study-survival2/
-output/simulation-study-survival3/
+output/simulation-study-survival*
+*.tsv
+*.rds
+*.png
+*.zip
