@@ -573,7 +573,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
 
     # runtime
     p6 <- df %>%
-        dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
+        dplyr::filter(threshold <= .75, !is.na(estimate)) %>%
         dplyr::select(.type, setting_label, runtime, simulation_run_label) %>%
         unique() %>%
         ggplot2::ggplot(ggplot2::aes(.type, runtime)) +
@@ -646,7 +646,8 @@ plot_case_study_results <- function(fit, outdir) {
     )
     dca_plot <- bayesDCA:::plot.BayesDCA(
         fit,
-        labels = .labels
+        labels = .labels,
+        linewidth = 1.25
     ) +
         ggplot2::theme(
             legend.position = c(0.2, 0.35),
@@ -664,11 +665,13 @@ plot_case_study_results <- function(fit, outdir) {
     plots_useful <- bayesDCA::compare_dca(
         fit,
         plot_list = TRUE,
-        type = "useful", labels = .labels
+        type = "useful", labels = .labels,
+        linewidth = 1.25
     )
     plots_best <- bayesDCA::compare_dca(
         fit,
-        plot_list = TRUE
+        plot_list = TRUE,
+        linewidth = 1.25
     )
 
     # tweak plots
@@ -725,7 +728,7 @@ plot_case_study_results <- function(fit, outdir) {
         ggplot2::labs(tag = "C")
     p4 <- plots_best$delta +
         ggplot2::labs(tag = "D") +
-        coord_cartesian(ylim = c(-0.085, 0.085))
+        ggplot2::coord_cartesian(ylim = c(-0.085, 0.085))
 
     posterior_iterrogation_plots <- (
         (p1 / p2) | (p3 / p4)
@@ -749,14 +752,15 @@ plot_case_study_results <- function(fit, outdir) {
                 fit,
                 type = "pairwise",
                 strategies = strategies,
-                labels = .labels[1:2]
+                labels = .labels[1:2],
+                linewidth = 1.25
             ) +
                 ggplot2::coord_cartesian(ylim = c(-.1, .1)) +
                 ggplot2::labs(subtitle = "Net benefit differences across all thresholds", tag = "A")
         })
     })
-    nb1 <- fit$draws$net_benefit[[strategies[1]]]
-    nb2 <- fit$draws$net_benefit[[strategies[2]]]
+    nb1 <- fit$fit$distributions$net_benefit[[strategies[1]]]
+    nb2 <- fit$fit$distributions$net_benefit[[strategies[2]]]
     .delta <- nb1 - nb2
     ix_41 <- dplyr::near(fit$thresholds, 0.41)
     .delta_41 <- .delta[, ix_41]
@@ -768,7 +772,7 @@ plot_case_study_results <- function(fit, outdir) {
             pairwise_41_plot <- data.frame(
                 x = .delta_41
             ) %>%
-                ggplot2::ggplot(aes(x = x)) +
+                ggplot2::ggplot(ggplot2::aes(x = x)) +
                 ggdist::stat_halfeye(
                     slab_color = "gray45",
                     ggplot2::aes(
@@ -798,7 +802,7 @@ plot_case_study_results <- function(fit, outdir) {
                     lineend = "round",
                     linejoin = "round",
                     linewidth = 1.5,
-                    arrow = arrow(length = unit(0.15, "inches")),
+                    arrow = ggplot2::arrow(length = ggplot2::unit(0.15, "inches")),
                     colour = "gray30"
                 ) +
                 ggplot2::geom_segment(
@@ -807,7 +811,7 @@ plot_case_study_results <- function(fit, outdir) {
                     lineend = "round",
                     linejoin = "round",
                     linewidth = 1.5,
-                    arrow = arrow(length = unit(0.15, "inches")),
+                    arrow = ggplot2::arrow(length = ggplot2::unit(0.15, "inches")),
                     colour = "gray30" # Also accepts "red", "blue' etc
                 ) +
                 ggplot2::annotate(
@@ -834,7 +838,7 @@ plot_case_study_results <- function(fit, outdir) {
     pairwise_plot <- (pairwise_delta_plot | pairwise_41_plot) +
         patchwork::plot_annotation(
             title = "ADNEX versus Standard of Care test",
-            theme = ggplot2::theme(plot.title = element_text(hjust = 0.5))
+            theme = ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
         )
     ggplot2::ggsave(
         str_path("{outdir}/pairwise-41.png"),
@@ -844,7 +848,7 @@ plot_case_study_results <- function(fit, outdir) {
 
     # EVPI ----
 
-    evpi_plot <- bayesDCA:::plot_evpi(fit) +
+    evpi_plot <- bayesDCA:::plot_evpi(fit, linewidth = 1.25) +
         ggplot2::labs(subtitle = "Expected Value of Perfect Information (EVPI)")
     ggplot2::ggsave(
         str_path("{outdir}/evpi.png"),

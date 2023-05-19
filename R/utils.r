@@ -42,14 +42,13 @@ expit <- function(x) {
 #' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
 #' @param show_informative_prior Whether to show results from BayesDCA with informative prior.
 #' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
-#' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
 #' @param thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
 #' @importFrom magrittr %>%
 compare_bdca_vs_rmda <- function(dataset, outcomes,
                                  predictor, thresholds,
                                  treat_all_rmda = FALSE, bootstraps = 500,
                                  show_informative_prior = FALSE,
-                                 refresh = 0, .quiet = FALSE, cores = 1) {
+                                 refresh = 0, .quiet = FALSE) {
   df <- data.frame(
     outcomes = dataset[[outcomes]],
     predictor = dataset[[predictor]]
@@ -60,26 +59,31 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
     msg <- cli::col_blue("Estimating DCA with bayesDCA (default)")
     message(msg)
   }
+  t0 <- proc.time()["elapsed"]
   bdca_fit <- bayesDCA::dca(
     df,
     thresholds = thresholds
   )
+  time_bayes <- proc.time()["elapsed"] - t0
 
   if (isTRUE(show_informative_prior)) {
     if (isFALSE(.quiet)) {
       msg <- cli::col_blue("Estimating DCA with bayesDCA (thr-varying prior)")
       message(msg)
     }
+    t0 <- proc.time()["elapsed"]
     bdca_fit_informative <- bayesDCA::dca(
       df,
       thresholds = thresholds
     )
+    time_bayes2 <- proc.time()["elapsed"] - t0
   }
 
   if (isFALSE(.quiet)) {
     msg <- cli::col_blue("Estimating DCA with rmda")
     message(msg)
   }
+  t0 <- proc.time()["elapsed"]
   rmda_fit <- rmda::decision_curve(
     outcomes ~ predictor,
     data = df,
@@ -87,6 +91,7 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
     thresholds = thresholds,
     bootstraps = bootstraps
   )
+  time_freq <- proc.time()["elapsed"] - t0
 
   # get results into standardized data.frames
   if (isFALSE(.quiet)) {
@@ -112,7 +117,8 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
         .type = "Bayesian",
         strategy = "Treat all"
       )
-  )
+  ) %>%
+    dplyr::mutate(runtime = time_bayes)
 
   res_rmda <- rmda_fit$derived.data %>%
     dplyr::filter(model %in% c("All", "outcomes ~ predictor")) %>%
@@ -130,7 +136,8 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
       .lower := NB_lower,
       .upper := NB_upper,
       .type, strategy
-    )
+    ) %>%
+    dplyr::mutate(runtime = time_freq)
 
   res_all <- dplyr::bind_rows(res_bdca, res_rmda)
 
@@ -154,7 +161,9 @@ compare_bdca_vs_rmda <- function(dataset, outcomes,
           .type = "Bayesian (informative prior)",
           strategy = "Treat all"
         )
-    )
+    ) %>%
+      dplyr::mutate(runtime = time_bayes2)
+
     res_all <- dplyr::bind_rows(res_all, res_bdca_informative)
   }
   return(res_all)
@@ -376,7 +385,6 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
 #' @param show_informative_prior Whether to show results from informative prior Bayesian DCA
 #' @param treat_all_rmda Logical indicating wether to plot Treat all from rmda (defaults to FALSE).
 #' @param refresh Refresh value for `rstan::sampling` (defaults to 0).
-#' @param cores Number of cores for `bayesDCA::dca`. Defaults to 1.
 #' @thresholds Numeric vector (between 0 and 1) of thresholds for DCA.
 #' @importFrom magrittr %>%
 plot_bdca_vs_rmda <- function(comparison = NULL,
@@ -384,7 +392,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
                               predictor = NULL, thresholds = NULL,
                               treat_all_rmda = FALSE, bootstraps = 500,
                               show_informative_prior = FALSE,
-                              refresh = 0, cores = 1, .quiet = FALSE) {
+                              refresh = 0, .quiet = FALSE) {
   import::from(magrittr, `%>%`)
 
   if (is.null(comparison)) {
@@ -393,7 +401,7 @@ plot_bdca_vs_rmda <- function(comparison = NULL,
       predictor = predictor, thresholds = thresholds,
       treat_all_rmda = FALSE, bootstraps = bootstraps,
       show_informative_prior = show_informative_prior,
-      refresh = 0, cores = cores, .quiet = FALSE
+      refresh = 0, .quiet = FALSE
     )
   }
   # get plot helper objects
@@ -618,7 +626,6 @@ get_setting_sample_list_surv <- function(events, n_sim, population_data, .settin
 #' @param .run_label If given, it will be appended to result as a "simulation_label" column.
 #' @param .setting_label If given, it will be appended to result as a "setting_label" column.
 #' @param overwrite If TRUE, any existing file in `result_path` will be overwritten by a new simualtion.
-#' @param cores Number of cores for bayesDCA. Defaults to 1.
 #' @param .verbose If TRUE more info is printed.
 run_dca_simulation <- function(df_sample,
                                thresholds,
@@ -627,7 +634,7 @@ run_dca_simulation <- function(df_sample,
                                raw_data = FALSE, .plot = FALSE,
                                result_path = NULL, .run_label = NULL,
                                .setting_label = NULL,
-                               overwrite = FALSE, cores = 1, .verbose = FALSE) {
+                               overwrite = FALSE, .verbose = FALSE) {
   if (!is.null(result_path)) {
     if (file.exists(result_path) && isFALSE(overwrite)) {
       msg <- cli::col_red(paste0(
@@ -654,9 +661,8 @@ run_dca_simulation <- function(df_sample,
     predictor = "model_predictions",
     thresholds = thresholds,
     show_informative_prior = TRUE,
-    bootstraps = 1e3,
-    .quiet = TRUE,
-    cores = cores
+    bootstraps = 500,
+    .quiet = TRUE
   )
 
   result <- dplyr::left_join(
