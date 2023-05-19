@@ -18,7 +18,7 @@ simulation_thresholds <- c(
 # other simulation settings
 n_sim <- 1000
 n_pop <- 1e6
-workers <- 32
+workers <- 10
 
 # Set target options:
 tar_option_set(

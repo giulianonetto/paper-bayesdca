@@ -10,7 +10,7 @@ compute_nb_surv|function|c95b8e4b0bbd300f|||||||||||||||
 expit|function|d42f2e267dbac39a|||||||||||||||
 gen_surv_data|function|09f75e7617461955|||||||||||||||
 gen_surv_data_old|function|06f642a7f63d1447|||||||||||||||
-get_final_figure_survival_simulation|stem|abb3a9b6071ad253|fcd3b3e2e55478f1|da2534e66662b381|615105501||t19496.8251967593s|eaad1b064f377095|44928884|rds|local|vector|||3.752||
+get_final_figure_survival_simulation|stem|cc9e3cf1a18d8843|fcd3b3e2e55478f1|27a3c00aa1bdd711|615105501||t19496.9799652778s|0afa4bd273ae20ff|45025313|rds|local|vector|||3.69||
 get_results_surv_bdca|function|1d385e1ac20f8548|||||||||||||||
 get_setting_sample_list|function|316d300a208dd802|||||||||||||||
 get_setting_sample_list_surv|function|b4db9a8708dad0b9|||||||||||||||
@@ -25,9 +25,9 @@ n_sim|object|42b194eec038fae9|||||||||||||||
 plot_adnex_case_study|stem|a93835ed38a31f8f|8664337d8549e44f|91afebc61c3e452a|103864010||t19496.824837963s|f3112597d5c69ffd|102548479|rds|local|vector|||5.174|is.na applied to nonlist or vector of type expression|
 plot_bdca_vs_rmda|function|ea51c02097625e83|||||||||||||||
 plot_case_study_results|function|937c6203431fad0d|||||||||||||||
-plot_simulation_binary_outcomes|stem|8eda025f38e43bdb|fccee88ad0f0fcc8|71db87d783cfd21d|-776717378||t19496.8250578704s|1023b991c745a43d|21544673|rds|local|vector|||15.916||
+plot_simulation_binary_outcomes|stem|f14d753ccc0a2d19|fccee88ad0f0fcc8|fa437b641401e71c|-776717378||t19496.979849537s|0908528560004861|21027910|rds|local|vector|||16.881||
 plot_simulation_results|function|e355935b7f702123|||||||||||||||
-plot_simulation_survival_outcomes|stem|e5448d0cdc6659fb|eab867facfd15564|7d521e471bfd378f|-1915809512||t19496.3631018519s|37df0bdf89436f22|41497112|rds|local|vector|||20.308||
+plot_simulation_survival_outcomes|stem|b9823e7086052a95|eab867facfd15564|65d9626430984c50|-1915809512||t19496.9796180556s|90f1d60b753f170a|41600294|rds|local|vector|||22.799||
 results_01_subsection|stem|1b9d10b1922ffec0|1b8bfcfb6bd5c969|b1e8ef913c7d7407|-1984634709||t19376.8083225848s|75e36065a03fb510|585589616|rds|local|vector|||104.007||
 results_02_subsection|stem|a81ba19df44ea1a8|e5ca4062549b7599|653819eb38ad6923|130078453||t19405.1999414706s|451d37de653f7a03|45090328|rds|local|vector|||5.238||
 results_02_subsection_plots|stem|2867a8a1ee4734f2|cbb1a562f57b2172|ca3f96e64414fb96|-2136702755||t19405.2027930836s|be20d8704718fec9|110246015|rds|local|vector|||27.43||
@@ -45,10 +45,10 @@ run_simulation_study_surv|function|6ff25f843f571051|||||||||||||||
 simulate_dca|function|3bbdeeedacb7a108|||||||||||||||
 simulate_dca_population|function|79684121dac43131|||||||||||||||
 simulate_dca_population_surv|function|bde20d2ac65ef76f|||||||||||||||
-simulation_binary_outcomes|stem|c028129c4168f82b|9e884c12b5e16587|2ac7c5139163db2e|-1617543926||t19496.8246527778s|cf84c83449f3e846|7389252|rds|local|vector|||1350.865||
+simulation_binary_outcomes|stem|26826d696e1dec18|9e884c12b5e16587|af2b53ba158e3e08|-1617543926||t19496.9792939815s|5aa338fa14916781|7381599|rds|local|vector|||4.574||
 simulation_dir|object|3493f56f9d9830a7|||||||||||||||
 simulation_output_dir|object|e099a280849291ea|||||||||||||||
-simulation_survival_outcomes|stem|802bc2943812bce5|905483c6e633d69b|abefddb23e4690f8|643975||t19496.3628009259s|0978404192415f83|11565724|rds|local|vector|||4129.352||
+simulation_survival_outcomes|stem|2937c5c7c285d6bb|905483c6e633d69b|617b032da605aa9b|643975||t19496.9792361111s|56288ec5c95bdd47|11608728|rds|local|vector|||1.149||
 simulation_thresholds|object|4390fff8bceebc8c|||||||||||||||
 str_path|function|ceb8215a18d486a2|||||||||||||||
 summarise_bdca_surv_pars|function|ad96c6c3c6c76e9e|||||||||||||||
@@ -56,4 +56,4 @@ summarise_dca_simulation|function|7ba131cd096a7ea9|||||||||||||||
 test_sim_setting|function|8e04d90e7fd076c0|||||||||||||||
 thresholds|object|fe755b7dc38e12f2|||||||||||||||
 validate_thresholds|function|b07270055479edb4|||||||||||||||
-workers|object|5e1c41701e6a8f87|||||||||||||||
+workers|object|f3582cdc107e111b|||||||||||||||
