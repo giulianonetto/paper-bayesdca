@@ -1,6 +1,6 @@
 run_gusto_trial_example <- function(outdir, thresholds, .seed = 123) {
     # Comparison with other packages ----
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
     outdir <- str_path(outdir)
     dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
     thresholds <- validate_thresholds(thresholds = thresholds)
@@ -154,7 +154,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
 #' @import tidyverse
 plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed,
                                     surv = FALSE, estimation_types = NULL, .colors = NULL) {
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
     dir.create(
         outdir,
         showWarnings = FALSE,
@@ -300,6 +300,14 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         dplyr::pull(.type) %>%
         dplyr::n_distinct()
 
+    if (n_types == 1) {
+        point_sizes <- 1
+    } else if (n_types == 2) {
+        point_sizes <- c(1, 2 / 3)
+    } else {
+        point_sizes <- n_types:1
+    }
+
     p2 <- df %>%
         dplyr::filter(threshold <= .75, !is.na(truth_within_interval)) %>%
         dplyr::group_by(threshold, .type, setting_label) %>%
@@ -349,7 +357,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ) +
         ggplot2::scale_color_manual(values = .colors) +
         ggplot2::scale_shape_manual(values = rep(19, n_types)) +
-        ggplot2::scale_size_manual(values = c(1, 2 / 3, 1 / 3) * n_types) +
+        ggplot2::scale_size_manual(values = point_sizes) +
         ggplot2::theme(
             legend.position = c(.12, .135)
         ) +
@@ -366,7 +374,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/empirical_coverage.png"),
         p2,
-        width = 15, height = plot_height, dpi = 600
+        width = 14, height = plot_height, dpi = 600
     )
 
     # raw error
@@ -629,7 +637,7 @@ run_case_study <- function(thresholds, .seed) {
 
 
 plot_case_study_results <- function(fit, outdir) {
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
     dir.create(
         outdir,
         showWarnings = FALSE,
@@ -958,7 +966,7 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
 }
 
 merge_survival_simulation_plots <- function(survival_simulation_plots, outdir) { # nolint
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 14))
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
     outdir <- str_path(outdir)
     dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
     library(patchwork)
@@ -966,12 +974,19 @@ merge_survival_simulation_plots <- function(survival_simulation_plots, outdir) {
         ggplot2::labs(x = NULL) +
         ggplot2::facet_wrap(~setting_label) +
         ggplot2::theme(legend.position = c(0.12, 0.85))
+    p1$data <- p1$data %>%
+        dplyr::filter(stringr::str_detect(setting_label, "C-statistic 0.95", negate = TRUE)) %>%
+        dplyr::filter(stringr::str_detect(setting_label, "1-year survival 10%"))
     p2 <- survival_simulation_plots$coverage
+    p2$data <- p2$data %>%
+        dplyr::filter(stringr::str_detect(setting_label, "C-statistic 0.95", negate = TRUE)) %>%
+        dplyr::filter(stringr::str_detect(setting_label, "1-year survival 10%"))
+
     final_fig <- p1 / p2
     ggplot2::ggsave(
         str_path("{outdir}/survival-simulation-final-figure.png"),
         final_fig,
-        width = 10, height = 8, dpi = 600
+        width = 11, height = 8, dpi = 600
     )
     return(final_fig)
 }
