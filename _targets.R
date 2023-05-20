@@ -34,7 +34,7 @@ list(
     name = gusto_trial_example,
     command = run_gusto_trial_example(
       outdir = str_path("output/gusto-trial-example"),
-      thresholds = seq(0, 0.95, 0.02),
+      thresholds = seq(0, 0.95, 0.01),
       .seed = .seed
     )
   ),
