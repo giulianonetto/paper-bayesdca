@@ -1,6 +1,6 @@
 run_gusto_trial_example <- function(outdir, thresholds, .seed = 123) {
     # Comparison with other packages ----
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 18))
     outdir <- str_path(outdir)
     dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
     thresholds <- validate_thresholds(thresholds = thresholds)
@@ -154,7 +154,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
 #' @import tidyverse
 plot_simulation_results <- function(simulation_results, outdir, global_simulation_seed,
                                     surv = FALSE, estimation_types = NULL, .colors = NULL) {
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 18))
     dir.create(
         outdir,
         showWarnings = FALSE,
@@ -637,7 +637,7 @@ run_case_study <- function(thresholds, .seed) {
 
 
 plot_case_study_results <- function(fit, outdir) {
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 18))
     dir.create(
         outdir,
         showWarnings = FALSE,
@@ -966,7 +966,7 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
 }
 
 merge_survival_simulation_plots <- function(survival_simulation_plots, outdir) { # nolint
-    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 18))
     outdir <- str_path(outdir)
     dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
     library(patchwork)
@@ -986,7 +986,7 @@ merge_survival_simulation_plots <- function(survival_simulation_plots, outdir) {
     ggplot2::ggsave(
         str_path("{outdir}/survival-simulation-final-figure.png"),
         final_fig,
-        width = 11, height = 8, dpi = 600
+        width = 11, height = 9, dpi = 600
     )
     return(final_fig)
 }
