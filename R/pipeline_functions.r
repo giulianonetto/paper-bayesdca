@@ -787,7 +787,7 @@ plot_case_study_results <- function(fit, outdir) {
                         fill = ggplot2::after_stat(x > 0)
                     ),
                     interval_size_range = c(1.5, 3),
-                    normalize = "none"
+                    normalize = "none", adjust = 2
                 ) +
                 ggplot2::scale_y_continuous(limits = c(0, 50)) +
                 ggplot2::labs(
