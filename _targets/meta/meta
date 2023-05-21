@@ -22,7 +22,7 @@ gusto_trial_example|stem|d225b6cb816dbef2|9aa5d248e5b751cd|fff5c327f57827c8|9181
 merge_survival_simulation_plots|function|0c224d64a9b5a4a0|||||||||||||||
 n_pop|object|f16d3be94b93d043|||||||||||||||
 n_sim|object|42b194eec038fae9|||||||||||||||
-plot_adnex_case_study|stem|ac75c07e2f878c0d|8664337d8549e44f|9fe231071954274d|103864010||t19498.2628876515s|e7206e9b8995413a|102547760|rds|local|vector|||6.392|is.na applied to nonlist or vector of type expression|
+plot_adnex_case_study|stem|ac75c07e2f878c0d|8664337d8549e44f|9fe231071954274d|103864010||t19498.2693756718s|e7206e9b8995413a|102547760|rds|local|vector|||6.884|is.na applied to nonlist or vector of type expression|
 plot_bdca_vs_rmda|function|ea51c02097625e83|||||||||||||||
 plot_case_study_results|function|a19c4f77e61256ec|||||||||||||||
 plot_simulation_binary_outcomes|stem|b2c9a91026cc8c27|fccee88ad0f0fcc8|e03f100881a4a343|-776717378||t19497.0544881465s|6c2d5b6176ef4534|21027909|rds|local|vector|||26.926||
