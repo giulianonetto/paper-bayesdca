@@ -739,7 +739,7 @@ plot_case_study_results <- function(fit, outdir) {
         ggplot2::coord_cartesian(ylim = c(-0.085, 0.085))
 
     posterior_iterrogation_plots <- (
-        (p1 / p2) | (p3 / p4)
+        (p1 | p2) / (p3 | p4)
     ) & ggplot2::theme(
         plot.tag = ggplot2::element_text(face = "bold")
     )

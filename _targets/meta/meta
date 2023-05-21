@@ -2,7 +2,7 @@ name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iterat
 .get_cutpoints|function|9c2dbcbdf76e1f71|||||||||||||||
 .Random.seed|object|b8f8408506725720|||||||||||||||
 .seed|object|49919b17bd696599|||||||||||||||
-adnex_case_study|stem|49e01d6c14de8521|8da817af14dd58c0|003913579fb8532e|505499449||t19496.8090046296s|41d1ea5ed137f228|16271037|rds|local|vector|||0.922||
+adnex_case_study|stem|49e01d6c14de8521|8da817af14dd58c0|003913579fb8532e|505499449||t19496.9881506331s|41d1ea5ed137f228|16271037|rds|local|vector|||0.922||
 compare_bdca_vs_dcurves|function|4811a7b5a225b6be|||||||||||||||
 compare_bdca_vs_rmda|function|3e6faf88c0bfbbe7|||||||||||||||
 compute_nb|function|c33e338abcc2f4ca|||||||||||||||
@@ -22,9 +22,9 @@ gusto_trial_example|stem|d225b6cb816dbef2|9aa5d248e5b751cd|fff5c327f57827c8|9181
 merge_survival_simulation_plots|function|0c224d64a9b5a4a0|||||||||||||||
 n_pop|object|f16d3be94b93d043|||||||||||||||
 n_sim|object|42b194eec038fae9|||||||||||||||
-plot_adnex_case_study|stem|a93835ed38a31f8f|8664337d8549e44f|91afebc61c3e452a|103864010||t19496.824837963s|f3112597d5c69ffd|102548479|rds|local|vector|||5.174|is.na applied to nonlist or vector of type expression|
+plot_adnex_case_study|stem|ac75c07e2f878c0d|8664337d8549e44f|e31dc355c1bab227|103864010||t19498.2280047399s|e7206e9b8995413a|102547760|rds|local|vector|||6.777|is.na applied to nonlist or vector of type expression|
 plot_bdca_vs_rmda|function|ea51c02097625e83|||||||||||||||
-plot_case_study_results|function|ecdd79377bfb115d|||||||||||||||
+plot_case_study_results|function|2c0f19ae65118eaf|||||||||||||||
 plot_simulation_binary_outcomes|stem|b2c9a91026cc8c27|fccee88ad0f0fcc8|e03f100881a4a343|-776717378||t19497.0544881465s|6c2d5b6176ef4534|21027909|rds|local|vector|||26.926||
 plot_simulation_results|function|64d3666d5d8177af|||||||||||||||
 plot_simulation_survival_outcomes|stem|86a6a7fbfdba2952|eab867facfd15564|6c368154e68b4ae5|-1915809512||t19497.0553325545s|e99ef0a911636ec9|41600360|rds|local|vector|||36.663||
