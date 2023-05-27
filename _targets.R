@@ -102,5 +102,13 @@ list(
       survival_simulation_plots = plot_simulation_survival_outcomes,
       outdir = str_path("output/simulation-study-survival")
     )
+  ),
+  tar_target(
+    name = prior_predictive_checks,
+    command = plot_informative_priors_ppc(
+      thresholds = seq(0, 0.5, 0.01),
+      outdir = str_path("output/informative-priors-ppc")
+    )
   )
+
 )

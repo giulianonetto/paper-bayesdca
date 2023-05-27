@@ -990,3 +990,36 @@ merge_survival_simulation_plots <- function(survival_simulation_plots, outdir) {
     )
     return(final_fig)
 }
+
+plot_informative_priors_ppc <- function(thresholds, outdir) {
+    # not that informative
+    fit_informative <- bayesDCA::dca(
+        data.frame(outcomes = 1, model = 1),
+        thresholds = thresholds,
+        threshold_varying_prior = TRUE,
+        prior_only = TRUE
+    )
+    ppc <- bayesDCA::plot_ppc(fit_informative)
+    ggsave(
+        str_path("{outdir}/ppc.png"),
+        ppc,
+        width = 14, height = 7.5, dpi = 600
+    )
+    # informative
+    fit_informative2 <- bayesDCA::dca(
+        data.frame(outcomes = 1, model = 1),
+        thresholds = thresholds,
+        threshold_varying_prior = TRUE,
+        ignorance_region_cutpoints = NULL,
+        prior_only = TRUE,
+        prev_prior_mean = 0.3,
+        prev_prior_sample_size = 50,
+        max_sens_prior_sample_size = 2
+    )
+    ppc2 <- bayesDCA::plot_ppc(fit_informative2)
+    ggsave(
+        str_path("{outdir}/ppc2.png"),
+        ppc2,
+        width = 14, height = 7.5, dpi = 600
+    )
+}
