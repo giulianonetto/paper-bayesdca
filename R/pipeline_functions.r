@@ -1014,7 +1014,7 @@ plot_informative_priors_ppc <- function(thresholds, outdir) {
         prior_only = TRUE,
         prev_prior_mean = 0.3,
         prev_prior_sample_size = 50,
-        max_sens_prior_sample_size = 2
+        max_sens_prior_sample_size = 5
     )
     ppc2 <- bayesDCA::plot_ppc(fit_informative2)
     ggsave(

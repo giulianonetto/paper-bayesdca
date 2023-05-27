@@ -25,11 +25,11 @@ n_sim|object|42b194eec038fae9|||||||||||||||
 plot_adnex_case_study|stem|ac75c07e2f878c0d|8664337d8549e44f|9fe231071954274d|103864010||t19498.2693756718s|e7206e9b8995413a|102547760|rds|local|vector|||6.884|is.na applied to nonlist or vector of type expression|
 plot_bdca_vs_rmda|function|ea51c02097625e83|||||||||||||||
 plot_case_study_results|function|a19c4f77e61256ec|||||||||||||||
-plot_informative_priors_ppc|function|4557705994bb7723|||||||||||||||
+plot_informative_priors_ppc|function|ad6981b5d5815444|||||||||||||||
 plot_simulation_binary_outcomes|stem|b2c9a91026cc8c27|fccee88ad0f0fcc8|e03f100881a4a343|-776717378||t19497.0544881465s|6c2d5b6176ef4534|21027909|rds|local|vector|||26.926||
 plot_simulation_results|function|64d3666d5d8177af|||||||||||||||
 plot_simulation_survival_outcomes|stem|86a6a7fbfdba2952|eab867facfd15564|6c368154e68b4ae5|-1915809512||t19497.0553325545s|e99ef0a911636ec9|41600360|rds|local|vector|||36.663||
-prior_predictive_checks|stem|5ca177388d47be69|4514a22f089704fa|689b8c48c979859d|-988158431||t19504.0648201443s|758d7d51407f572d|117|rds|local|vector|||7.173||
+prior_predictive_checks|stem|5ca177388d47be69|4514a22f089704fa|ba37bd467f7bdb1f|-988158431||t19504.0673119008s|758d7d51407f572d|117|rds|local|vector|||6.543||
 results_01_subsection|stem|1b9d10b1922ffec0|1b8bfcfb6bd5c969|b1e8ef913c7d7407|-1984634709||t19376.8083225848s|75e36065a03fb510|585589616|rds|local|vector|||104.007||
 results_02_subsection|stem|a81ba19df44ea1a8|e5ca4062549b7599|653819eb38ad6923|130078453||t19405.1999414706s|451d37de653f7a03|45090328|rds|local|vector|||5.238||
 results_02_subsection_plots|stem|2867a8a1ee4734f2|cbb1a562f57b2172|ca3f96e64414fb96|-2136702755||t19405.2027930836s|be20d8704718fec9|110246015|rds|local|vector|||27.43||
