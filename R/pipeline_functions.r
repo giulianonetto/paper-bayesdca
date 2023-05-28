@@ -999,7 +999,9 @@ plot_informative_priors_ppc <- function(thresholds, outdir) {
         threshold_varying_prior = TRUE,
         prior_only = TRUE
     )
-    ppc <- bayesDCA::plot_ppc(fit_informative)
+    ppc <- bayesDCA::plot_ppc(fit_informative) +
+        patchwork::plot_annotation(tag_levels = "A") &
+        ggplot2::theme(plot.tag = ggplot2::element_text(face = "bold"))
     ggsave(
         str_path("{outdir}/ppc.png"),
         ppc,
@@ -1016,7 +1018,9 @@ plot_informative_priors_ppc <- function(thresholds, outdir) {
         prev_prior_sample_size = 50,
         max_sens_prior_sample_size = 5
     )
-    ppc2 <- bayesDCA::plot_ppc(fit_informative2)
+    ppc2 <- bayesDCA::plot_ppc(fit_informative2) +
+        patchwork::plot_annotation(tag_levels = "A") &
+        ggplot2::theme(plot.tag = ggplot2::element_text(face = "bold"))
     ggsave(
         str_path("{outdir}/ppc2.png"),
         ppc2,
