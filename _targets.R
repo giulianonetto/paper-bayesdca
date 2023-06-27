@@ -109,6 +109,12 @@ list(
       thresholds = seq(0, 0.5, 0.01),
       outdir = str_path("output/informative-priors-ppc")
     )
+  ),
+  tar_target(
+    name = evpi_simulation,
+    command = run_evpi_simulation(
+      n_sim = n_sim,
+      outdir = str_path("output/evpi-simulation")
+    )
   )
-
 )

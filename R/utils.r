@@ -1281,3 +1281,226 @@ get_thr_label <- function(x) {
   }
   return(labs)
 }
+
+#' EVPI for external validation
+#' (adapts `predtools::evpi_val()` to allow a
+#' "Full Bayes" method based on the BayesDCA R package.)
+evpi_val2 <- function(Y,
+                      pi,
+                      method = c("bootstrap", "bayesian_bootstrap", "asymptotic", "full_bayes"),
+                      n_sim = 1000,
+                      threshold_varying_prior = FALSE,
+                      max_sens_prior_mean = NULL,
+                      min_sens_prior_mean = NULL,
+                      max_sens_prior_sample_size = NULL,
+                      prev_prior_mean = 0.5,
+                      prev_prior_sample_size = 2,
+                      prior_p = NULL,
+                      zs = (0:99) / 100,
+                      weights = NULL) {
+  n <- length(Y)
+  if (method == "asymptotic") {
+    if (is.null(weights)) {
+      weights <- rep(1, n)
+    }
+    ENB_perfect <- ENB_current <- rep(0, length(zs))
+    for (j in seq_along(zs)) {
+      NB_model <- sum(weights * (pi > zs[j]) * (Y - (1 - Y) * zs[j] / (1 - zs[j]))) / n
+      NB_all <- sum(weights * (Y - (1 - Y) * zs[j] / (1 - zs[j]))) / n
+      parms <- predtools::calc_NB_moments(Y, pi, zs[j], weights)
+      if (is.na(parms[5])) {
+        ENB_perfect[j] <- ENB_current[j] <- max(0, NB_model, NB_all)
+      } else {
+        if (parms[5] > 0.999999) {
+          parms[5] <- 0.999999
+        }
+        if (parms[5] < -0.999999) {
+          parms[5] <- -0.999999
+        }
+        tryCatch(
+          {
+            ENB_perfect[j] <- predtools::mu_max_trunc_bvn(
+              parms[1],
+              parms[2], parms[3], parms[4], parms[5]
+            )
+          },
+          error = function(cond) {
+            return(NULL)
+          }
+        )
+        ENB_current[j] <- max(0, NB_model, NB_all)
+      }
+    }
+    return(data.frame(
+      z = zs, ENB_perfect = ENB_perfect,
+      ENB_current = ENB_current, EVPIv = ENB_perfect - ENB_current
+    ))
+  }
+  NB_model <- NB_all <- matrix(0, n_sim, ncol = length(zs))
+  if (method == "bootstrap" || method == "bayesian_bootstrap") {
+    Bayesian_bootstrap <- method == "bayesian_bootstrap"
+    for (i in 1:n_sim) {
+      w_x <- bootstrap(n, Bayesian_bootstrap, weights = weights)
+      for (j in seq_along(zs)) {
+        NB_model[i, j] <- sum(w_x * (pi > zs[j]) * (Y - (1 - Y) * zs[j] / (1 - zs[j]))) / n
+        NB_all[i, j] <- sum(w_x * (Y - (1 - Y) * zs[j] / (1 - zs[j]))) / n
+      }
+    }
+  } else if (method == "full_bayes") {
+    priors <- bayesDCA:::.get_prior_parameters(
+      thresholds = zs,
+      threshold_varying_prior = threshold_varying_prior,
+      prior_p = prior_p,
+      ignorance_region_cutpoints = NULL,
+      max_sens_prior_mean = max_sens_prior_mean,
+      min_sens_prior_mean = min_sens_prior_mean,
+      max_sens_prior_sample_size = max_sens_prior_sample_size,
+      prev_prior_mean = prev_prior_mean,
+      prev_prior_sample_size = prev_prior_sample_size,
+      n_strategies = 1
+    )
+    prev <- rbeta(n_sim, shape1 = sum(Y) + priors$p1, shape2 = n - sum(Y) + priors$p2)
+    for (j in seq_along(zs)) {
+      tp <- sum(Y == 1L & pi > zs[j])
+      fn <- sum(Y == 1L & pi <= zs[j])
+      tn <- sum(Y == 0L & pi <= zs[j])
+      fp <- sum(Y == 0L & pi > zs[j])
+      se_j <- rbeta(n_sim, shape1 = tp + priors$Se1[j, 1], shape2 = fn + priors$Se2[j, 1])
+      sp_j <- rbeta(n_sim, shape1 = tn + priors$Sp1[j, 1], shape2 = fp + priors$Sp2[j, 1])
+      NB_model[, j] <- prev * se_j - (1 - prev) * (1 - sp_j) * zs[j] / (1 - zs[j])
+      NB_all[, j] <- prev * 1 - (1 - prev) * (1 - 0) * zs[j] / (1 - zs[j])
+    }
+  } else {
+    stop("Method ", method, " is not recognized.")
+  }
+  ENB_model <- ENB_all <- ENB_perfect <- ENB_current <- EVPIv <- p_useful <- rep(NA, length(zs))
+  for (i in seq_along(zs)) {
+    ENB_model[i] <- mean(NB_model[, i])
+    ENB_all[i] <- mean(NB_all[, i])
+    ENB_perfect[i] <- mean(pmax(
+      NB_model[, i], NB_all[, i],
+      0
+    ))
+    ENB_current[i] <- max(ENB_model[i], ENB_all[i], 0)
+    EVPIv[i] <- ENB_perfect[i] - ENB_current[i]
+    p_useful[i] <- mean((pmax(
+      NB_model[, i], NB_all[, i],
+      0
+    ) - NB_model[, i]) == 0)
+  }
+  data.frame(
+    z = zs, ENB_model = ENB_model, ENB_all = ENB_all,
+    ENB_current = ENB_current, ENB_perfect = ENB_perfect,
+    EVPIv = EVPIv, p_useful = p_useful
+  )
+}
+
+
+#' Code adapted from Sadatsafavi et al (2023) [DOI: 10.1177/0272989X231178317]
+#' by Giuliano Netto Flores Cruz on June 27, 2023.
+#' Originally used for Figure 5 in the cited paper.
+#' Original source code URL:
+#' https://github.com/resplab/papercode/blob/main/voipred_ex/CaseStudy.Rmd
+sim_by_size <- function(data_us,
+                        model,
+                        n_sim = 1000,
+                        sample_sizes = c(250, 500, 1000, 2000, 4000, 8000, 16000, Inf),
+                        zs = c(0.01, 0.02, 0.05, 0.1)) {
+  set.seed(1)
+  out <- data.frame(method = character(), sample_size = integer())
+  for (i in seq_along(zs)) {
+    out[paste0("val", i)] <- double()
+  }
+
+  index <- 1
+
+  for (s in seq_along(sample_sizes)) {
+    sample_size <- sample_sizes[s]
+    cat("Sample size: ", sample_size, "\n")
+    res_bb <- res_ob <- res_ll <- rep(0, length(zs))
+
+    for (i in 1:n_sim) {
+      if (is.infinite(sample_size)) {
+        this_data <- data_us
+        this_data$pi <- predict(model, newdata = this_data, type = "response")
+        sample_size <- dim(this_data)[1]
+      } else {
+        repeat {
+          this_data <- data_us[sample(1:(dim(data_us)[1]), sample_size, FALSE), ] # nolint
+          this_data$pi <- predict(model, newdata = this_data, type = "response")
+          if (min(this_data$pi) < min(zs)) {
+            break
+          } else {
+            cat("bad external validation sample.")
+          }
+        }
+      }
+
+      bad <- FALSE
+      tmp <- predtools::evpi_val(
+        Y = this_data$Y, pi = this_data$pi,
+        method = "bayesian_bootstrap", zs = zs
+      )
+      if (is.null(tmp)) bad <- TRUE
+      out[index, "method"] <- "BB"
+      out[index, "sample_size"] <- sample_size
+      out[index, c("val1", "val2", "val3", "val4")] <- tmp$EVPIv
+      index <- index + 1
+
+      tmp <- predtools::evpi_val(
+        Y = this_data$Y, pi = this_data$pi,
+        method = "bootstrap", zs = zs
+      )
+      if (is.null(tmp)) bad <- TRUE
+      out[index, "method"] <- "OB"
+      out[index, "sample_size"] <- sample_size
+      out[index, c("val1", "val2", "val3", "val4")] <- tmp$EVPIv
+      index <- index + 1
+
+      tmp <- predtools::evpi_val(
+        Y = this_data$Y, pi = this_data$pi,
+        method = "asymptotic", zs = zs
+      )
+      if (is.null(tmp)) bad <- TRUE
+      out[index, "method"] <- "asy"
+      out[index, "sample_size"] <- sample_size
+      out[index, c("val1", "val2", "val3", "val4")] <- tmp$EVPIv
+      index <- index + 1
+
+      tmp <- evpi_val2(
+        Y = this_data$Y, pi = this_data$pi,
+        method = "full_bayes", zs = zs
+      )
+      if (is.null(tmp)) bad <- TRUE
+      out[index, "method"] <- "full_bayes"
+      out[index, "sample_size"] <- sample_size
+      out[index, c("val1", "val2", "val3", "val4")] <- tmp$EVPIv
+      index <- index + 1
+
+      tmp <- evpi_val2(
+        Y = this_data$Y, pi = this_data$pi,
+        method = "full_bayes",
+        zs = zs,
+        threshold_varying_prior = TRUE,
+        max_sens_prior_mean = 0.95,
+        min_sens_prior_mean = 0.5,
+        max_sens_prior_sample_size = 10,
+        prev_prior_mean = 0.5,
+        prev_prior_sample_size = 2
+      )
+      if (is.null(tmp)) bad <- TRUE
+      out[index, "method"] <- "full_bayes_informative"
+      out[index, "sample_size"] <- sample_size
+      out[index, c("val1", "val2", "val3", "val4")] <- tmp$EVPIv
+      index <- index + 1
+
+      if (bad) {
+        index <- index - 5
+        i <- i - 1
+        message("bad")
+      }
+    }
+  }
+
+  return(out)
+}

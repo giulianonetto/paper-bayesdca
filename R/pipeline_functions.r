@@ -1027,3 +1027,124 @@ plot_informative_priors_ppc <- function(thresholds, outdir) {
         width = 14, height = 7.5, dpi = 600
     )
 }
+
+
+#' Run EVPI simulations
+#'
+#' Code adapted from Sadatsafavi et al (2023) [DOI: 10.1177/0272989X231178317]
+#' by Giuliano Netto Flores Cruz on June 27, 2023.
+#' Original source code URL:
+#' https://github.com/resplab/papercode/blob/main/voipred_ex/CaseStudy.Rmd
+run_evpi_simulation <- function(
+    n_sim,
+    outdir) {
+    import::from(magrittr, `%>%`)
+    data(gusto, package = "predtools")
+    gusto$kill <- (as.numeric(gusto$Killip) > 1) * 1
+    gusto$Y <- gusto$day30
+    data_us <- gusto[gusto$regl %in% c(1, 7, 9, 10, 11, 12, 14, 15), ]
+    data_other <- gusto[!gusto$regl %in% c(1, 7, 9, 10, 11, 12, 14, 15), ]
+    dev_data <- data_other
+
+    model <- glm(
+        Y ~ age + miloc + pmi + kill + pmin(sysbp, 100) + pulse,
+        data = dev_data,
+        family = binomial(link = "logit")
+    )
+
+    res <- sim_by_size(
+        data_us = data_us,
+        model = model,
+        n_sim = n_sim,
+        sample_sizes = c(250, 500, 1000, 2000, 4000, 8000, 16000, Inf)
+    )
+    pres <- res %>%
+        dplyr::group_by(method, sample_size) %>%
+        dplyr::summarise(
+            val1 = mean(val1),
+            val2 = mean(val2),
+            val3 = mean(val3),
+            val4 = mean(val4),
+            .groups = "drop"
+        ) %>%
+        as.data.frame()
+    .levels <- c(
+        "Asymptotic",
+        "Ordinary bootstrap",
+        "Bayesian bootstrap",
+        "BayesDCA (uniform)",
+        "BayesDCA (informative)"
+    )
+    .colors <- c(
+        "orange",
+        "red",
+        "blue",
+        "gray40",
+        "gray10"
+    ) %>%
+        setNames(.levels)
+
+    ggplot2::theme_set(ggplot2::theme_bw(base_size = 16))
+    .plot <- pres %>%
+        tidyr::pivot_longer(cols = contains("val")) %>%
+        dplyr::filter(
+            (name == "val1") |
+                (name == "val2" & sample_size <= 8000) |
+                (name == "val3" & sample_size <= 4000) |
+                (name == "val4" & sample_size <= 4000)
+        ) %>%
+        dplyr::mutate(
+            thr = c("val1" = 0.01, "val2" = 0.02, "val3" = 0.05, "val4" = 0.1)[name],
+            thr = paste0("threshold = ", thr),
+            method = dplyr::case_match(
+                method,
+                "asy" ~ .levels[1],
+                "BB" ~ .levels[2],
+                "OB" ~ .levels[3],
+                "full_bayes" ~ .levels[4],
+                "full_bayes_informative" ~ .levels[5]
+            ),
+            method = factor(
+                method,
+                levels = .levels
+            )
+        ) %>%
+        ggplot2::ggplot(
+            ggplot2::aes(sample_size, value, color = method)
+        ) +
+        ggplot2::geom_line(linewidth = 1) +
+        ggplot2::facet_wrap(
+            ~thr,
+            scales = "free"
+        ) +
+        ggplot2::scale_color_manual(
+            values = .colors,
+            name = NULL
+        ) +
+        ggplot2::labs(
+            x = "Sample size",
+            y = "EVPI"
+        ) +
+        ggplot2::theme(
+            legend.position = "top"
+        ) +
+        ggplot2::scale_y_continuous(
+            labels = (
+                function(x) {
+                    ifelse(
+                        x == 0,
+                        0,
+                        scales::scientific_format()(x)
+                    )
+                }),
+            limits = c(0, NA)
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/evpi-simulation.png"),
+        .plot,
+        width = 14,
+        height = 7.5,
+        dpi = 600
+    )
+}
