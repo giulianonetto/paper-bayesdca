@@ -1039,6 +1039,8 @@ run_evpi_simulation <- function(
     n_sim,
     outdir) {
     import::from(magrittr, `%>%`)
+    devtools::install_version("predtools", version = "0.0.3", dependencies = TRUE)
+
     data(gusto, package = "predtools")
     gusto$kill <- (as.numeric(gusto$Killip) > 1) * 1
     gusto$Y <- gusto$day30
