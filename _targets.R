@@ -24,7 +24,7 @@ workers <- 10
 tar_option_set(
   packages = c(
     "tidyverse", "bayesDCA", "rmda",
-    "dcurves", "OptimalCutpoints", "furrr"
+    "dcurves", "OptimalCutpoints", "furrr", "predtools"
   )
 )
 
