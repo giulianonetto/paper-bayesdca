@@ -79,6 +79,7 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
     set.seed(.seed)
     settings_seeds <- sample(1:1000, n_settings)
     simulation_results <- vector("list", n_settings)
+    populations_summaries <- vector("list", n_settings)
     results_ix <- 1
     for (i in 1:n_settings) {
         .setting <- simulation_settings[[i]]
@@ -96,6 +97,15 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
             thresholds = thresholds,
             .seed = .setting_seed,
             .verbose = .verbose
+        )
+        populations_summaries[[i]] <- list(
+            setting_id = i,
+            prevalence = mean(setting_population$y),
+            average_prediction = mean(setting_population$p_hat),
+            calibration_oe = setting_population$calibration_oe,
+            calibration_slope = setting_population$calibration_slope,
+            auc = setting_population$auc,
+            n = length(setting_population$y)
         )
         # simulate samples for DCA
         df_sample_list <- get_setting_sample_list(
@@ -142,6 +152,10 @@ run_simulation_study <- function(n_sim, thresholds, n_pop,
     readr::write_tsv(
         simulation_results,
         simulation_results_file
+    )
+    readr::write_tsv(
+        dplyr::bind_rows(populations_summaries),
+        str_path("{outdir}/populations_summaries.tsv")
     )
 
     return(simulation_results)
@@ -650,7 +664,7 @@ plot_case_study_results <- function(fit, outdir) {
 
     .labels <- list(
         "model_predictions" = "ADNEX",
-        "binary_test" = "Standard of Care test"
+        "binary_test" = "Hypothetical Standard of Care test"
     )
     dca_plot <- bayesDCA:::plot.BayesDCA(
         fit,
@@ -688,7 +702,7 @@ plot_case_study_results <- function(fit, outdir) {
             color = ggplot2::guide_legend(title = NULL)
         ) +
         ggplot2::theme(
-            legend.position = c(0.75, 0.25),
+            legend.position = c(0.65, 0.25),
             legend.text = ggplot2::element_text(size = 8),
             legend.key.size = ggplot2::unit(0.5, "cm")
         ) +
@@ -898,6 +912,7 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
     set.seed(.seed)
     settings_seeds <- sample(1:1000, n_settings)
     simulation_results <- vector("list", n_settings)
+    populations_summaries <- vector("list", n_settings)
     for (i in 1:n_settings) {
         .setting <- simulation_settings[[i]]
         .setting_label <- names(simulation_settings)[i]
@@ -914,6 +929,15 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
             .seed = .setting_seed,
             pred_time = pred_time,
             .verbose = .verbose
+        )
+        populations_summaries[[i]] <- list(
+            setting_id = i,
+            event_rate = setting_population$event_rate,
+            average_prediction = setting_population$average_prediction,
+            calibration_oe = setting_population$calibration_oe,
+            calibration_slope = setting_population$calibration_slope,
+            concordance = setting_population$concordance,
+            n = n_pop
         )
         # simulate samples for DCA
         df_sample_list <- get_setting_sample_list_surv(
@@ -960,6 +984,10 @@ run_simulation_study_surv <- function(n_sim, thresholds, n_pop,
     readr::write_tsv(
         simulation_results,
         simulation_results_file
+    )
+    readr::write_tsv(
+        dplyr::bind_rows(populations_summaries),
+        str_path("{outdir}/populations_summaries.tsv")
     )
 
     return(simulation_results)

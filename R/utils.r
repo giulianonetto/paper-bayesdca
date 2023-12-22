@@ -311,12 +311,13 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
   t0 <- proc.time()["elapsed"]
   dcurves_fit <- try(
     {
-      dcurves::dca(
-        outcomes ~ predictor,
+    fit_bootstrap_dcurves(
+        formula = outcomes ~ predictor,
         data = df,
         time = pred_time,
-        thresholds = thresholds
-      )
+        thresholds = thresholds,
+        B = bootstraps
+    )
     },
     silent = TRUE
   )
@@ -368,6 +369,47 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
 
   res_all <- dplyr::bind_rows(res_bdca, res_bdca2, res_dcurves)
   return(res_all)
+}
+
+#' Fit bootstrapped version of dcurves
+#' @param .formula
+#' @param data
+#' @param time
+#' @param thresholds
+fit_bootstrap_dcurves <- function(
+  formula,
+  data,
+  time,
+  thresholds,
+  B = 2e3
+) {
+  res <- lapply(
+      seq_len(B),
+      function(i) {
+          ix <- sample(nrow(df), replace = TRUE)
+          dcurves::dca(
+              formula,
+              data = data[ix, ],
+              time = time,
+              thresholds = thresholds
+          )$dca %>% 
+              dplyr::select(variable, label, threshold, net_benefit)
+      }
+  )
+  res <- dplyr::bind_rows(res, .id = "id")
+
+  se <- res %>% 
+      group_by(variable, label, threshold) %>% 
+      summarise(se = sd(net_benefit), .groups = "drop")
+  estimate <- dcurves::dca(
+              formula,
+              data = data,
+              time = time,
+              thresholds = thresholds
+  )$dca
+
+  output <- dplyr::inner_join(estimate, se, by = c("variable", "label", "threshold"))
+  return(output)
 }
 
 #' Plot bayesDCA vs rmda comparison
@@ -490,6 +532,36 @@ compute_nb <- function(y, pred, thr) {
   )
 }
 
+#' Get calibration for binary outcomes
+#' @param y
+#' @param pred
+get_calibration_binary <- function(y, pred) {
+    oe <- mean(y)/mean(pred)
+    lp <- qlogis(pred)
+    ix <- !is.infinite(lp) & !is.na(lp)
+    lp <- lp[ix]
+    y <- y[ix]
+    slope <- coef(glm(y ~ 1 + lp, family = binomial(link = "logit")))[[2]]
+    return(list(oe = oe, slope = slope))
+}
+
+#' Get performance (calibration + concordance) for survival outcomes
+#' @param surv_time The true simulated survival times
+#' @param pred Predicted 12-month event probability from example model being validated
+get_performance_surv <- function(surv_time, pred, pred_time = 12) {
+    event_rate <- mean(surv_time < pred_time)
+    oe <- event_rate / mean(pred)
+    lp <- exp(pred)
+    ix <- !is.infinite(lp) & !is.na(lp)
+    lp <- lp[ix]
+    surv_time <- surv_time[ix]
+    event <- rep(1, length(surv_time))
+    fit <- survival::coxph(survival::Surv(surv_time, event=event) ~ lp)
+    slope <- coef(fit)[[1]]
+    concordance <- survival:::concordance(fit)[[1]]
+    return(list(oe = oe, slope = slope, concordance = concordance))
+}
+
 #' Compute net benefit for given threshold
 #' @param surv_time The true simulated survival times
 #' @param surv_hat Predicted 1-year event probability from example model being validated
@@ -540,6 +612,10 @@ simulate_dca_population <- function(true_beta, beta_hat, n_pop, thresholds, .see
     compute_nb(y = y, pred = p_hat, thr = .x)
   })
 
+  ## calculate performance metrics
+  calibration <- get_calibration_binary(y = y, pred = p_hat)
+  auc <- pROC::auc(y, p_hat, quiet = TRUE)[[1]]
+
   output <- list(
     y = y,
     x = x,
@@ -548,6 +624,9 @@ simulate_dca_population <- function(true_beta, beta_hat, n_pop, thresholds, .see
     thresholds = thresholds,
     n_pop = n_pop,
     true_nb = true_nb,
+    calibration_oe = calibration$oe,
+    calibration_slope = calibration$slope,
+    auc = auc,
     true_beta = true_beta,
     beta_hat = beta_hat,
     population_seed = .seed
@@ -1250,6 +1329,11 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed,
       thr = .x
     )
   })
+  performance <- get_performance_surv(
+    surv_time = df_pop$survTime,
+    pred = df_pop$p_hat,
+    pred_time = pred_time
+  )
 
   output <- list(
     df_pop = df_pop,
@@ -1261,6 +1345,11 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed,
     sim_setting = sim_setting,
     n_zeros_surv = n_zeros_surv,
     n_zeros_cens = n_zeros_cens,
+    calibration_oe = performance$oe,
+    calibration_slope = performance$slope,
+    concordance = performance$concordance,
+    event_rate = mean(df_pop$survTime <= pred_time),
+    average_prediction = mean(df_pop$p_hat),
     population_seed = .seed
   )
 
