@@ -344,7 +344,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
   }
 
   if (class(dcurves_fit) != "try-error") {
-    res_dcurves <- dcurves_fit$dca %>%
+    res_dcurves <- dcurves_fit %>%
       dplyr::filter(variable %in% c("all", "predictor")) %>%
       dplyr::mutate(
         strategy = ifelse(
@@ -353,8 +353,8 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
           "Model-based decisions"
         ),
         .type = "Frequentist",
-        .lower := NA_real_,
-        .upper := NA_real_,
+        .lower := net_benefit - 1.96 * se,
+        .upper := net_benefit + 1.96 * se,
       ) %>%
       dplyr::select(
         threshold,
