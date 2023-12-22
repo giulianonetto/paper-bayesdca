@@ -16,8 +16,8 @@ simulation_thresholds <- c(
 )
 
 # other simulation settings
-n_sim <- 10
-n_pop <- 1e4+1#1e6
+n_sim <- 20
+n_pop <- 3e4#1e6
 workers <- 10
 
 # Set target options:

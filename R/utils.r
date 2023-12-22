@@ -381,7 +381,7 @@ fit_bootstrap_dcurves <- function(
   data,
   time,
   thresholds,
-  B = 2e3
+  B = 500
 ) {
   res <- lapply(
       seq_len(B),
