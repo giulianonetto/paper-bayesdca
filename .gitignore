@@ -69,3 +69,10 @@ output-old/simulation-study-survival*
 *.rds
 *.png
 *.zip
+
+
+error.txt
+jobfile.sh
+output.txt
+paper-bayesdca_latest.sif
+workers.txt
