@@ -859,7 +859,7 @@ plot_case_study_results <- function(fit, outdir) {
 
     pairwise_plot <- (pairwise_delta_plot | pairwise_41_plot) +
         patchwork::plot_annotation(
-            title = "ADNEX versus Standard of Care test",
+            title = "ADNEX versus Hypothetical Standard of Care test",
             theme = ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
         )
     ggplot2::ggsave(

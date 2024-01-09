@@ -282,27 +282,6 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
   )
   time_bayes <- proc.time()["elapsed"] - t0
 
-  t0 <- proc.time()["elapsed"]
-  bdca_fit2 <- try(
-    {
-      log("a")
-      # bayesDCA::dca_surv2(
-      #   df,
-      #   thresholds = thresholds,
-      #   prediction_time = pred_time,
-      #   keep_fit = TRUE,
-      #   refresh = refresh,
-      #   positivity_prior_pars = c(1, 1),
-      #   shape_prior_pars = c(20, 20),
-      #   scale_prior_pars = c(30, 0, 100),
-      #   iter = 4000,
-      #   cores = cores
-      # )
-    },
-    silent = TRUE
-  )
-  time_bayes2 <- proc.time()["elapsed"] - t0
-
   if (isFALSE(.quiet)) {
     msg <- cli::col_blue("Estimating DCA with dcurves")
     message(msg)
@@ -329,21 +308,14 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
     message(msg)
   }
 
-  if (class(bdca_fit) != "try-error") {
+  if (isFALSE(inherits(bdca_fit, "try-error"))) {
     res_bdca <- get_results_surv_bdca(fit = bdca_fit, type_label = "Bayesian") %>%
       dplyr::mutate(runtime = time_bayes)
   } else {
     res_bdca <- data.frame()
   }
 
-  if (class(bdca_fit2) != "try-error") {
-    res_bdca2 <- get_results_surv_bdca(fit = bdca_fit2, type_label = "Bayesian 2") %>%
-      dplyr::mutate(runtime = time_bayes2)
-  } else {
-    res_bdca2 <- data.frame()
-  }
-
-  if (class(dcurves_fit) != "try-error") {
+  if (isFALSE(inherits(dcurves_fit, "try-error"))) {
     res_dcurves <- dcurves_fit %>%
       dplyr::filter(variable %in% c("all", "predictor")) %>%
       dplyr::mutate(
@@ -367,7 +339,7 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
     res_dcurves <- data.frame()
   }
 
-  res_all <- dplyr::bind_rows(res_bdca, res_bdca2, res_dcurves)
+  res_all <- dplyr::bind_rows(res_bdca, res_dcurves)
   return(res_all)
 }
 
@@ -386,14 +358,24 @@ fit_bootstrap_dcurves <- function(
   res <- lapply(
       seq_len(B),
       function(i) {
-          ix <- sample(nrow(df), replace = TRUE)
-          dcurves::dca(
-              formula,
-              data = data[ix, ],
-              time = time,
-              thresholds = thresholds
-          )$dca %>% 
-              dplyr::select(variable, label, threshold, net_benefit)
+          ix <- sample(nrow(data), replace = TRUE)
+          x <- try(
+            {
+              dcurves::dca(
+                formula,
+                data = data[ix, ],
+                time = time,
+                thresholds = thresholds
+              )$dca %>% 
+                dplyr::select(variable, label, threshold, net_benefit)
+            },
+            silent = TRUE
+          )
+          if (isFALSE(inherits(x, "try-error"))) {
+            return(x)
+          } else {
+            return(NULL)
+          }
       }
   )
   res <- dplyr::bind_rows(res, .id = "id")
