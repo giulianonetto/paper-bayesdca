@@ -6,7 +6,7 @@ source(here("R/pipeline_functions.r"))
 options(tidyverse.quiet = TRUE)
 
 # global seed
-.seed <- 01012024
+.seed <- 02012024
 
 # decision thresholds used in simulations and examples
 simulation_thresholds <- c(
@@ -18,7 +18,9 @@ simulation_thresholds <- c(
 # other simulation settings
 n_sim <- 1e3
 n_pop <- 1e6
-workers <- 10
+workers <- parallel::detectCores() - 1
+
+readr::write_lines(paste0("workers=", workers), "workers.txt")
 
 # Set target options:
 tar_option_set(
