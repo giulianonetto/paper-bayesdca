@@ -229,8 +229,8 @@ get_results_surv_bdca <- function(fit, type_label) {
       pos_estimate = 1, pos_lower = 1, pos_upper = 1
     )
   res_bdca <- dplyr::bind_rows(
-    left_join(nb_summary, nb_pars_summary, by = "threshold"),
-    bind_cols(tall_summary, tall_pars_summary)
+    dplyr::left_join(nb_summary, nb_pars_summary, by = "threshold"),
+    dplyr::bind_cols(tall_summary, tall_pars_summary)
   )
 
   return(res_bdca)
@@ -381,8 +381,19 @@ fit_bootstrap_dcurves <- function(
   res <- dplyr::bind_rows(res, .id = "id")
 
   se <- res %>% 
-      group_by(variable, label, threshold) %>% 
-      summarise(se = sd(net_benefit), .groups = "drop")
+      dplyr::group_by(variable, label, threshold) %>% 
+      dplyr::summarise(
+        se = sd(net_benefit, na.rm = TRUE),
+        na_prop = mean(is.na(net_benefit)),
+        .groups = "drop"
+      )
+  if (any(se$na_prop > 0.2)) {
+    print(se)
+    msg <- "FATAL - more than 20% NAs in dcurves bootstrap for some case."
+    stop(cli::col_br_red(msg))
+  }
+
+  se <- se %>% dplyr::select(-na_prop)
   estimate <- dcurves::dca(
               formula,
               data = data,
@@ -530,18 +541,23 @@ get_calibration_binary <- function(y, pred) {
 #' Get performance (calibration + concordance) for survival outcomes
 #' @param surv_time The true simulated survival times
 #' @param pred Predicted 12-month event probability from example model being validated
-get_performance_surv <- function(surv_time, pred, pred_time = 12) {
+get_performance_surv <- function(surv_time, obs_time, status, lp, predicted_risk, pred_time = 12) {
     event_rate <- mean(surv_time < pred_time)
-    oe <- event_rate / mean(pred)
-    lp <- exp(pred)
-    ix <- !is.infinite(lp) & !is.na(lp)
-    lp <- lp[ix]
-    surv_time <- surv_time[ix]
-    event <- rep(1, length(surv_time))
-    fit <- survival::coxph(survival::Surv(surv_time, event=event) ~ lp)
+    oe <- event_rate / mean(predicted_risk)
+    fit <- survival::coxph(survival::Surv(obs_time, status) ~ lp)
     slope <- coef(fit)[[1]]
     concordance <- survival:::concordance(fit)[[1]]
-    return(list(oe = oe, slope = slope, concordance = concordance))
+    time_roc_oracle <- pROC::auc(
+      surv_time > pred_time,
+      predicted_risk,
+      quiet = TRUE
+    )[[1]]
+
+    output <- list(
+      oe = oe, slope = slope, concordance = concordance,
+      time_roc = NA, time_roc_oracle = time_roc_oracle
+    )
+    return(output)
 }
 
 #' Compute net benefit for given threshold
@@ -1293,13 +1309,33 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed,
   }
 
   # placeholder coxph fit object
-  fit_hat <- survival::coxph(survival::Surv(obsTime, status) ~ x1 + x2, data = df_pop[1:500, ])
+  ix <- seq_len(min(nrow(df_pop), 1e5))
+  fit_hat <- survival::coxph(survival::Surv(obsTime, status) ~ x1 + x2, data = df_pop[ix, ])
   fit_hat$coef <- fit_hat$coefficients <- sim_setting$beta_hat
 
   df_pop$p_hat <- 1 - predict(
     fit_hat,
     newdata = df_pop %>% dplyr::mutate(obsTime = pred_time),
     type = "survival"
+  )
+  df_pop$lp_hat <- predict(
+    fit_hat,
+    newdata = df_pop %>% dplyr::mutate(obsTime = pred_time),
+    type = "lp"
+  )
+
+  fit_true <- survival::coxph(survival::Surv(obsTime, status) ~ x1 + x2, data = df_pop[ix, ])
+  fit_true$coef <- fit_true$coefficients <- sim_setting$true_beta
+
+  df_pop$true_p <- 1 - predict(
+    fit_true,
+    newdata = df_pop %>% dplyr::mutate(obsTime = pred_time),
+    type = "survival"
+  )
+  df_pop$true_lp <- predict(
+    fit_true,
+    newdata = df_pop %>% dplyr::mutate(obsTime = pred_time),
+    type = "lp"
   )
 
   ## calculate true NB|y,p_hat
@@ -1313,7 +1349,19 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed,
   })
   performance <- get_performance_surv(
     surv_time = df_pop$survTime,
-    pred = df_pop$p_hat,
+    obs_time = df_pop$obsTime,
+    status = df_pop$status,
+    lp = df_pop$lp_hat,
+    predicted_risk = df_pop$p_hat,
+    pred_time = pred_time
+  )
+
+  performance_true_beta <- get_performance_surv(
+    surv_time = df_pop$survTime,
+    obs_time = df_pop$obsTime,
+    status = df_pop$status,
+    lp = df_pop$true_lp,
+    predicted_risk = df_pop$true_p,
     pred_time = pred_time
   )
 
@@ -1332,7 +1380,9 @@ simulate_dca_population_surv <- function(sim_setting, n_pop, thresholds, .seed,
     concordance = performance$concordance,
     event_rate = mean(df_pop$survTime <= pred_time),
     average_prediction = mean(df_pop$p_hat),
-    population_seed = .seed
+    population_seed = .seed,
+    performance = performance,
+    performance_true_beta = performance_true_beta
   )
 
   return(output)
