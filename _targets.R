@@ -6,7 +6,7 @@ source(here("R/pipeline_functions.r"))
 options(tidyverse.quiet = TRUE)
 
 # global seed
-.seed <- 14012024
+.seed <- 19012024
 
 # decision thresholds used in simulations and examples
 simulation_thresholds <- c(
