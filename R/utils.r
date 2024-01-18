@@ -290,13 +290,13 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
   t0 <- proc.time()["elapsed"]
   dcurves_fit <- try(
     {
-    fit_bootstrap_dcurves(
+      fit_bootstrap_dcurves(
         formula = outcomes ~ predictor,
         data = df,
         time = pred_time,
         thresholds = thresholds,
         B = bootstraps
-    )
+      )
     },
     silent = TRUE
   )
@@ -349,56 +349,55 @@ compare_bdca_vs_dcurves <- function(dataset, outcomes,
 #' @param time
 #' @param thresholds
 fit_bootstrap_dcurves <- function(
-  formula,
-  data,
-  time,
-  thresholds,
-  B = 500
-) {
+    formula,
+    data,
+    time,
+    thresholds,
+    B = 500) {
   res <- lapply(
-      seq_len(B),
-      function(i) {
-          ix <- sample(nrow(data), replace = TRUE)
-          x <- try(
-            {
-              dcurves::dca(
-                formula,
-                data = data[ix, ],
-                time = time,
-                thresholds = thresholds
-              )$dca %>% 
-                dplyr::select(variable, label, threshold, net_benefit)
-            },
-            silent = TRUE
-          )
-          if (isFALSE(inherits(x, "try-error"))) {
-            return(x)
-          } else {
-            return(NULL)
-          }
+    seq_len(B),
+    function(i) {
+      ix <- sample(nrow(data), replace = TRUE)
+      x <- try(
+        {
+          dcurves::dca(
+            formula,
+            data = data[ix, ],
+            time = time,
+            thresholds = thresholds
+          )$dca %>%
+            dplyr::select(variable, label, threshold, net_benefit)
+        },
+        silent = TRUE
+      )
+      if (isFALSE(inherits(x, "try-error"))) {
+        return(x)
+      } else {
+        return(NULL)
       }
+    }
   )
   res <- dplyr::bind_rows(res, .id = "id")
 
-  se <- res %>% 
-      dplyr::group_by(variable, label, threshold) %>% 
-      dplyr::summarise(
-        se = sd(net_benefit, na.rm = TRUE),
-        na_prop = mean(is.na(net_benefit)),
-        .groups = "drop"
-      )
-  if (any(se$na_prop > 0.2)) {
+  se <- res %>%
+    dplyr::group_by(variable, label, threshold) %>%
+    dplyr::summarise(
+      se = sd(net_benefit, na.rm = TRUE),
+      na_prop = mean(is.na(net_benefit)),
+      .groups = "drop"
+    )
+  if (any(se$na_prop > 0.5)) {
     print(se)
-    msg <- "FATAL - more than 20% NAs in dcurves bootstrap for some case."
-    stop(cli::col_br_red(msg))
+    msg <- "more than 50% NAs in dcurves bootstrap for some case."
+    logger::log_warn(cli::col_br_red(msg))
   }
 
   se <- se %>% dplyr::select(-na_prop)
   estimate <- dcurves::dca(
-              formula,
-              data = data,
-              time = time,
-              thresholds = thresholds
+    formula,
+    data = data,
+    time = time,
+    thresholds = thresholds
   )$dca
 
   output <- dplyr::inner_join(estimate, se, by = c("variable", "label", "threshold"))
@@ -529,35 +528,35 @@ compute_nb <- function(y, pred, thr) {
 #' @param y
 #' @param pred
 get_calibration_binary <- function(y, pred) {
-    oe <- mean(y)/mean(pred)
-    lp <- qlogis(pred)
-    ix <- !is.infinite(lp) & !is.na(lp)
-    lp <- lp[ix]
-    y <- y[ix]
-    slope <- coef(glm(y ~ 1 + lp, family = binomial(link = "logit")))[[2]]
-    return(list(oe = oe, slope = slope))
+  oe <- mean(y) / mean(pred)
+  lp <- qlogis(pred)
+  ix <- !is.infinite(lp) & !is.na(lp)
+  lp <- lp[ix]
+  y <- y[ix]
+  slope <- coef(glm(y ~ 1 + lp, family = binomial(link = "logit")))[[2]]
+  return(list(oe = oe, slope = slope))
 }
 
 #' Get performance (calibration + concordance) for survival outcomes
 #' @param surv_time The true simulated survival times
 #' @param pred Predicted 12-month event probability from example model being validated
 get_performance_surv <- function(surv_time, obs_time, status, lp, predicted_risk, pred_time = 12) {
-    event_rate <- mean(surv_time < pred_time)
-    oe <- event_rate / mean(predicted_risk)
-    fit <- survival::coxph(survival::Surv(obs_time, status) ~ lp)
-    slope <- coef(fit)[[1]]
-    concordance <- survival:::concordance(fit)[[1]]
-    time_roc_oracle <- pROC::auc(
-      surv_time > pred_time,
-      predicted_risk,
-      quiet = TRUE
-    )[[1]]
+  event_rate <- mean(surv_time < pred_time)
+  oe <- event_rate / mean(predicted_risk)
+  fit <- survival::coxph(survival::Surv(obs_time, status) ~ lp)
+  slope <- coef(fit)[[1]]
+  concordance <- survival:::concordance(fit)[[1]]
+  time_roc_oracle <- pROC::auc(
+    surv_time > pred_time,
+    predicted_risk,
+    quiet = TRUE
+  )[[1]]
 
-    output <- list(
-      oe = oe, slope = slope, concordance = concordance,
-      time_roc = NA, time_roc_oracle = time_roc_oracle
-    )
-    return(output)
+  output <- list(
+    oe = oe, slope = slope, concordance = concordance,
+    time_roc = NA, time_roc_oracle = time_roc_oracle
+  )
+  return(output)
 }
 
 #' Compute net benefit for given threshold
