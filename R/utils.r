@@ -874,6 +874,11 @@ run_dca_simulation_surv <- function(df_sample,
     dplyr::mutate(
       abs_error = abs(estimate - .true_nb),
       truth_within_interval = .true_nb >= .lower & .true_nb <= .upper,
+      truth_within_interval = ifelse(
+        is.na(truth_within_interval),
+        FALSE,
+        truth_within_interval
+      ),
       truth_within_interval_surv = .true_surv >= surv_lower & .true_surv <= surv_upper,
       truth_within_interval_pos = .true_pos >= pos_lower & .true_pos <= pos_upper,
       error_surv = surv_estimate - .true_surv,
