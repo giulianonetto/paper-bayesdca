@@ -390,6 +390,9 @@ fit_bootstrap_dcurves <- function(
     print(se)
     msg <- "more than 50% NAs in dcurves bootstrap for some case."
     logger::log_warn(cli::col_br_red(msg))
+    if (any(se$na_prop >= 0.95)) {
+      se$se[se$na_prop >= 0.95] <- NA_real_ # bootstrap failed
+    }
   }
 
   se <- se %>% dplyr::select(-na_prop)
