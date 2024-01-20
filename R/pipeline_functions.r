@@ -446,7 +446,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::scale_shape_manual(values = rep(19, n_types)) +
         ggplot2::scale_size_manual(values = point_sizes) +
         ggplot2::theme(
-            legend.position = c(0.08, .15)
+            legend.position = c(0.08, .85)
         ) +
         ggplot2::coord_cartesian(ylim = c(0, 1)) +
         ggplot2::labs(
