@@ -197,6 +197,16 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         simulation_results$.type %in% estimation_types,
     ]
 
+    # make sure NA intervals get NA truth_within_interval
+    simulation_results <- simulation_results %>%
+        dplyr::mutate(
+            truth_within_interval = ifelse(
+                is.na(estimate) | is.na(.lower) | is.na(.upper),
+                NA,
+                truth_within_interval
+            )
+        )
+
     if (isFALSE(surv)) {
         setting_labels_pretty <- purrr::map_chr(
             get_simulation_settings(),
@@ -388,6 +398,69 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
     ggplot2::ggsave(
         str_path("{outdir}/empirical_coverage.png"),
         p2,
+        width = 14, height = plot_height, dpi = 600
+    )
+
+    # failure rate
+    p2.2 <- df %>%
+        dplyr::filter(threshold <= .75) %>%
+        dplyr::group_by(threshold, .type, setting_label) %>%
+        dplyr::summarise(
+            failure = list(binom::binom.wilson(sum(is.na(truth_within_interval)), n())),
+            .groups = "drop"
+        ) %>%
+        tidyr::unnest_wider(failure) %>%
+        dplyr::rename(
+            failure := mean,
+            failure_lower := lower,
+            failure_upper := upper
+        ) %>%
+        dplyr::mutate(
+            .type = factor(
+                .type,
+                levels = sort(estimation_types)
+            ),
+            thr_factor = factor(
+                threshold,
+                levels = thresholds,
+                labels = get_thr_label(thresholds)
+            )
+        ) %>%
+        dplyr::arrange(.type) %>%
+        ggplot2::ggplot(ggplot2::aes(thr_factor, failure, color = .type)) +
+        ggplot2::geom_line(
+            ggplot2::aes(linetype = .type, group = .type)
+        ) +
+        ggplot2::geom_pointrange(
+            ggplot2::aes(
+                ymin = failure_lower, ymax = failure_upper,
+                shape = .type, size = .type
+            ),
+            stroke = 1.5
+        ) +
+        ggplot2::facet_wrap(~setting_label) +
+        ggplot2::scale_y_continuous(
+            labels = scales::label_percent()
+        ) +
+        ggplot2::scale_color_manual(values = .colors) +
+        ggplot2::scale_shape_manual(values = rep(19, n_types)) +
+        ggplot2::scale_size_manual(values = point_sizes) +
+        ggplot2::theme(
+            legend.position = c(0.08, .15)
+        ) +
+        ggplot2::coord_cartesian(ylim = c(0, 1)) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Empirical failure rate",
+            color = NULL,
+            size = NULL,
+            linetype = NULL,
+            shape = NULL
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/empirical_failure_rate.png"),
+        p2.2,
         width = 14, height = plot_height, dpi = 600
     )
 
@@ -1005,7 +1078,10 @@ merge_survival_simulation_plots <- function(survival_simulation_plots, outdir) {
     p1$data <- p1$data %>%
         dplyr::filter(stringr::str_detect(setting_label, "C-statistic 0.95", negate = TRUE)) %>%
         dplyr::filter(stringr::str_detect(setting_label, "1-year survival 10%"))
-    p2 <- survival_simulation_plots$coverage
+    p2 <- survival_simulation_plots$coverage +
+        ggplot2::theme(
+            legend.position = c(.12, .3)
+        )
     p2$data <- p2$data %>%
         dplyr::filter(stringr::str_detect(setting_label, "C-statistic 0.95", negate = TRUE)) %>%
         dplyr::filter(stringr::str_detect(setting_label, "1-year survival 10%"))
