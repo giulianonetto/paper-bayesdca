@@ -15,7 +15,7 @@ gen_surv_data|function|09f75e7617461955|||||||||||||||
 gen_surv_data_old|function|06f642a7f63d1447|||||||||||||||
 get_calibration_binary|function|b49da049613471d1|||||||||||||||
 get_calibration_surv|function|1ba6a6b97efda818|||||||||||||||
-get_final_figure_survival_simulation|stem|2f8f9beb1c571783|fcd3b3e2e55478f1|9e8b7b52e25c8a61|615105501||t19742.8522027493s|b98cf295c42d4041|48306204|rds|local|vector|||4.016||
+get_final_figure_survival_simulation|stem|783c11265ef3fd67|fcd3b3e2e55478f1|9313003e9ca24dd1|615105501||t19743.7851332347s|176f6b7a221a83b2|48281403|rds|local|vector|||2.892||
 get_performance_surv|function|851a7e2cdf8c22c9|||||||||||||||
 get_results_surv_bdca|function|79cfc744b8101ca8|||||||||||||||
 get_setting_sample_list|function|316d300a208dd802|||||||||||||||
@@ -33,8 +33,8 @@ plot_bdca_vs_rmda|function|ea51c02097625e83|||||||||||||||
 plot_case_study_results|function|631bbb9e1c0ece81|||||||||||||||
 plot_informative_priors_ppc|function|6b86e00340525287|||||||||||||||
 plot_simulation_binary_outcomes|stem|504e383284a3d31c|fccee88ad0f0fcc8|170d598a49491bf6|-776717378||t19741.150162037s|b29032a29f00e7d3|21559071|rds|local|vector|||14.79||
-plot_simulation_results|function|00e94672f3fa0543|||||||||||||||
-plot_simulation_survival_outcomes|stem|833b258393f2b844|eab867facfd15564|2dc9d3f3cf9f402c|-1915809512||t19742.8629168533s|ef2d152f140a45bd|47475949|rds|local|vector|||31.839|1m22mRemoved 10261 rows containing nonfinite values stat_boxplot.|
+plot_simulation_results|function|8c338c84cfd38209|||||||||||||||
+plot_simulation_survival_outcomes|stem|c50fe8774be60a01|eab867facfd15564|62005ac1dd13ff38|-1915809512||t19743.7850137428s|660b1b738d332d50|47475957|rds|local|vector|||35.865|1m22mRemoved 10261 rows containing nonfinite values stat_boxplot.|
 prior_predictive_checks|stem|a8736892bd87890e|4514a22f089704fa|9140afb75807b7ae|-988158431||t19536.9868287037s|4bab66ba4bee4440|108|rds|local|vector|||5.741||
 results_01_subsection|stem|1b9d10b1922ffec0|1b8bfcfb6bd5c969|b1e8ef913c7d7407|-1984634709||t19376.8083225848s|75e36065a03fb510|585589616|rds|local|vector|||104.007||
 results_02_subsection|stem|a81ba19df44ea1a8|e5ca4062549b7599|653819eb38ad6923|130078453||t19405.1999414706s|451d37de653f7a03|45090328|rds|local|vector|||5.238||

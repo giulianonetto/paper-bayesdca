@@ -451,7 +451,7 @@ plot_simulation_results <- function(simulation_results, outdir, global_simulatio
         ggplot2::coord_cartesian(ylim = c(0, 1)) +
         ggplot2::labs(
             x = "Decision threshold",
-            y = "Empirical failure rate",
+            y = "Failed estimation frequency",
             color = NULL,
             size = NULL,
             linetype = NULL,
