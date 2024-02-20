@@ -703,6 +703,7 @@ run_case_study <- function(thresholds, .seed) {
     soc_test_se <- 0.81
     soc_test_sp <- 0.88
 
+    .seed <- 12112022 # for reproducibility of example percentages in the paper
     set.seed(.seed)
     d <- d %>%
         rowwise() %>%

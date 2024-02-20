@@ -2,7 +2,7 @@ name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iterat
 .get_cutpoints|function|9c2dbcbdf76e1f71|||||||||||||||
 .Random.seed|object|e9cbd39528896e58|||||||||||||||
 .seed|object|45914e388762c03b|||||||||||||||
-adnex_case_study|stem|017c8b4c7836db4a|8da817af14dd58c0|4754a7e64b2e6fe1|505499449||t19741.133587963s|41932d2d3aed6080|16271500|rds|local|vector|||0.591||
+adnex_case_study|stem|66251d273cd7b69f|8da817af14dd58c0|1b06d32650e6a3ac|505499449||t19773.2140472761s|ecedd8da0f857243|16271075|rds|local|vector|||1.175||
 compare_bdca_vs_dcurves|function|2e99e4d172707d83|||||||||||||||
 compare_bdca_vs_rmda|function|3e6faf88c0bfbbe7|||||||||||||||
 compute_nb|function|c33e338abcc2f4ca|||||||||||||||
@@ -28,7 +28,7 @@ gusto_trial_example|stem|c89841927d10db39|9aa5d248e5b751cd|f56e3f4224aeb2c9|9181
 merge_survival_simulation_plots|function|a8de2340f127f75b|||||||||||||||
 n_pop|object|f16d3be94b93d043|||||||||||||||
 n_sim|object|42b194eec038fae9|||||||||||||||
-plot_adnex_case_study|stem|c01bda30fc0d90ec|8664337d8549e44f|2a9ec9706239c4ee|103864010||t19741.1499652778s|894001c51d8037cd|102568853|rds|local|vector|||4.928|is.na applied to nonlist or vector of type expression|
+plot_adnex_case_study|stem|c8c993e17fdbbe0c|8664337d8549e44f|99ff7d093d7ca84e|103864010||t19773.2147876525s|e4c6720f5324e650|102560463|rds|local|vector|||7.316|is.na applied to nonlist or vector of type expression|
 plot_bdca_vs_rmda|function|ea51c02097625e83|||||||||||||||
 plot_case_study_results|function|631bbb9e1c0ece81|||||||||||||||
 plot_informative_priors_ppc|function|6b86e00340525287|||||||||||||||
@@ -44,7 +44,7 @@ results_03_subsection_plots|stem|6c8404356e6bbef6|d6aa421274b4ce45|fca7ba3080c20
 results_04_subsection|stem|942604cec77f2722|f3fbbc2e9f6bbd79|a23fcf84054de661|929926898||t19405.2052127611s|d9679fa01c5e520e|3071415|rds|local|vector|||1.137||
 results_04_subsection_plots|stem|589110dfe2aad341|756e0fdf4b0adfaa|4dd5694a1c4226da|-14585783||t19405.2095411079s|77c7317a13f0bc89|16633121|rds|local|vector|||14.268||
 run_bayes_vs_frequentist|function|89793868063be714|||||||||||||||
-run_case_study|function|19360f64ff51d161|||||||||||||||
+run_case_study|function|30431fafac5daf71|||||||||||||||
 run_dca_simulation|function|bb17b3b385d1ce06|||||||||||||||
 run_dca_simulation_surv|function|f468eb518d644131|||||||||||||||
 run_evpi_simulation|function|53693d81cf240500|||||||||||||||
