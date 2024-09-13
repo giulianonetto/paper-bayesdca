@@ -50,3 +50,6 @@ bayesDCA::compare_dca(f, type = "useful")
 bayesDCA::compare_dca(f, type = "best")
 bayesDCA::plot_delta(f, strategies = c("lp1", "lp0"), type = "pairwise") +
     ggplot2::coord_cartesian(ylim = c(-0.01, 0.03))
+# take true delta NB for each threshold
+# compute frequency of wrong decisions
+# compute average NB loss
