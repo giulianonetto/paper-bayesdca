@@ -118,5 +118,12 @@ list(
       n_sim = n_sim,
       outdir = str_path("output/evpi-simulation")
     )
+  ),
+  tar_target(
+    name = sample_size_simulation,
+    command = run_sample_size_simulation(
+      n_sim = n_sim,
+      outdir = str_path("output/sample-size-simulation")
+    )
   )
 )

@@ -1254,3 +1254,35 @@ run_evpi_simulation <- function(
         dpi = 600
     )
 }
+
+
+run_sample_size_simulation <- function(n_sim, outdir, overwrite = FALSE) {
+    simulation_results_file <- str_path("{outdir}/simulation_results_sample_size.tsv")
+    if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
+        msg <- cli::col_br_red("Simulation results (sample size) exist and will not be overwritten")
+        message(msg)
+        simulation_results <- readr::read_tsv(
+            simulation_results_file,
+            show_col_types = FALSE
+        )
+        return(simulation_results)
+    }
+
+    dir.create(
+        outdir,
+        showWarnings = FALSE,
+        recursive = TRUE
+    )
+
+    n_cases_list <- c(50, 100, 200)
+    results <- vector("list", length(n_cases))
+    for (i in seq_along(n_cases)) {
+        msg <- cli::col_br_magenta(paste0("Running sample size simulation with ", .n_cases, " cases"))
+        message(msg)
+        results[[i]] <- run_sample_size_simulation_setting(
+            n_sim = 10,
+            n_cases = n_cases_list[i]
+        )
+    }
+    results <- dplyr::bind_rows(results)
+}
