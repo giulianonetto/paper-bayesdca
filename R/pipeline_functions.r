@@ -1261,28 +1261,39 @@ run_sample_size_simulation <- function(n_sim, outdir, overwrite = FALSE) {
     if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
         msg <- cli::col_br_red("Simulation results (sample size) exist and will not be overwritten")
         message(msg)
-        simulation_results <- readr::read_tsv(
+        sample_size_simulation_results <- readr::read_tsv(
             simulation_results_file,
             show_col_types = FALSE
         )
         return(simulation_results)
-    }
-
-    dir.create(
-        outdir,
-        showWarnings = FALSE,
-        recursive = TRUE
-    )
-
-    n_cases_list <- c(50, 100, 200)
-    results <- vector("list", length(n_cases))
-    for (i in seq_along(n_cases)) {
-        msg <- cli::col_br_magenta(paste0("Running sample size simulation with ", .n_cases, " cases"))
+    } else {
+        msg <- cli::col_br_red("Starting sample size simulation")
         message(msg)
-        results[[i]] <- run_sample_size_simulation_setting(
-            n_sim = 10,
-            n_cases = n_cases_list[i]
+        # ensure outdir exists
+        dir.create(
+            outdir,
+            showWarnings = FALSE,
+            recursive = TRUE
+        )
+        # each sim setting is a sample size
+        sample_size_list <- c(250, 500, 1000, 2000)
+        sample_size_simulation_results <- vector("list", length(sample_size_list))
+        # run simulation for each sample size
+        for (i in seq_along(sample_size_list)) {
+            msg <- cli::col_br_magenta(paste0("Running sample size simulation with sample_size=", sample_size_list[i]))
+            message(msg)
+            sample_size_simulation_results[[i]] <- run_sample_size_simulation_single_setting(
+                n_sim = 10,
+                n = sample_size_list[i]
+            )
+        }
+        # combine and save results
+        sample_size_simulation_results <- dplyr::bind_rows(sample_size_simulation_results)
+        readr::write_tsv(
+            sample_size_simulation_results,
+            simulation_results_file
         )
     }
-    results <- dplyr::bind_rows(results)
+
+    # post-process results
 }

@@ -1633,22 +1633,31 @@ sim_by_size <- function(data_us,
   return(out)
 }
 
-
-run_sample_size_simulation_setting <- function(n_sim, n_cases) {
-  .simulate_data <- function(n) {
-    true_lp <- rnorm(n, -1.7, sd = 1.05)
-    obs_lp <- true_lp / 0.85 + 0.1
-    y <- rbinom(n, size = 1, prob = plogis(true_lp))
-    return(data.frame(y = y, obs_lp = obs_lp, true_lp = true_lp))
-  }
-  .run_single_run <- function(n) {
-    d <- .simulate_data(n = n)
-    run_results <- data.frame()
-    return(run_results)
-  }
-
+run_sample_size_simulation_single_setting <- function(n_sim, n) {
   setting_results <- vector("list", length = n_sim)
   for (j in seq_len(n_sim)) {
-    setting_results[[j]] <- .run_single_run(n = ceiling(n_cases / 0.2)) # approximate prevalence of 20%
+    setting_results[[j]] <- run_sample_size_simulation_single_run(n = n)
   }
+  return(dplyr::bind_rows(setting_results))
+}
+
+run_sample_size_simulation_single_run <- function(n) {
+  # simulate data
+  ## baseline model
+  ### calib int -0.014
+  ### calib slope 0.99
+  ### concordance 0.69
+  ## new model
+  ### calib int -0.15
+  ### calib slope 0.86
+  ### concordance 0.74
+  x1 <- rnorm(n)
+  x2 <- rnorm(n)
+  true_lp <- -2 + 0.9 * x1 + 0.7 * x2 + rnorm(n)
+  lp0 <- -1.6 + 0.74 * x1
+  lp1 <- -1.8 + 0.8 * x1 + 0.8 * x2
+  y <- rbinom(n, size = 1, prob = plogis(true_lp))
+  d <- data.frame(y = y, phat0 = plogis(lp0), phat1 = plogis(lp1), true_p = plogis(true_lp))
+  run_results <- data.frame()
+  return(run_results)
 }
