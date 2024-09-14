@@ -122,7 +122,7 @@ list(
   tar_target(
     name = sample_size_simulation,
     command = run_sample_size_simulation(
-      n_sim = n_sim,
+      n_sim = 10,
       outdir = str_path("output/sample-size-simulation")
     )
   )

@@ -14,7 +14,7 @@ simulate_data <- function(n) {
 }
 
 {
-    n <- 1e6
+    n <- 2e6
     x1 <- rnorm(n)
     x2 <- rnorm(n)
     true_lp <- -2 + 0.9 * x1 + 0.7 * x2 + rnorm(n)
@@ -34,11 +34,10 @@ simulate_data <- function(n) {
     ) %>%
         dplyr::mutate_if(is.numeric, round, 2) %>%
         print()
-    rms::val.prob(plogis(lp0)[1:1e3], true_y[1:1e3], xlab = "plogis(lp0)")
-    rms::val.prob(plogis(lp1)[1:1e3], true_y[1:1e3], xlab = "plogis(lp1)")
+    rms::val.prob(plogis(lp0), true_y, xlab = "plogis(lp0)")
+    rms::val.prob(plogis(lp1), true_y, xlab = "plogis(lp1)")
 }
 
-nn <- 1e5
 d <- data.frame(
     outcomes = true_y,
     lp0 = plogis(lp0),

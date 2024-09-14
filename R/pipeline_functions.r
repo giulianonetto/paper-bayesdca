@@ -1286,6 +1286,7 @@ run_sample_size_simulation <- function(n_sim, outdir, overwrite = FALSE) {
                 n_sim = 10,
                 n = sample_size_list[i]
             )
+            sample_size_simulation_results[[i]]$setting_id <- paste0("setting_", i)
         }
         # combine and save results
         sample_size_simulation_results <- dplyr::bind_rows(sample_size_simulation_results)
