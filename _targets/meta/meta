@@ -1,6 +1,6 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 .get_cutpoints|function|9c2dbcbdf76e1f71|||||||||||||||
-.Random.seed|object|e9cbd39528896e58|||||||||||||||
+.Random.seed|object|aa5ab1a6f5c0bf32|||||||||||||||
 .seed|object|45914e388762c03b|||||||||||||||
 adnex_case_study|stem|66251d273cd7b69f|8da817af14dd58c0|1b06d32650e6a3ac|505499449||t19773.2140472761s|ecedd8da0f857243|16271075|rds|local|vector|||1.175||
 compare_bdca_vs_dcurves|function|2e99e4d172707d83|||||||||||||||
@@ -18,6 +18,7 @@ get_calibration_surv|function|1ba6a6b97efda818|||||||||||||||
 get_final_figure_survival_simulation|stem|783c11265ef3fd67|fcd3b3e2e55478f1|9313003e9ca24dd1|615105501||t19743.7851332347s|176f6b7a221a83b2|48281403|rds|local|vector|||2.892||
 get_performance_surv|function|851a7e2cdf8c22c9|||||||||||||||
 get_results_surv_bdca|function|79cfc744b8101ca8|||||||||||||||
+get_sample_size_dca|function|7601293f673597b9|||||||||||||||
 get_setting_sample_list|function|316d300a208dd802|||||||||||||||
 get_setting_sample_list_surv|function|b4db9a8708dad0b9|||||||||||||||
 get_simulation_settings|function|53b17184cb147b77|||||||||||||||
@@ -49,8 +50,12 @@ run_dca_simulation|function|bb17b3b385d1ce06|||||||||||||||
 run_dca_simulation_surv|function|f468eb518d644131|||||||||||||||
 run_evpi_simulation|function|53693d81cf240500|||||||||||||||
 run_gusto_trial_example|function|0761a52c7dab985c|||||||||||||||
+run_sample_size_simulation|function|9e06e48102696bb5|||||||||||||||
+run_sample_size_simulation_single_run|function|65060a9b1e5881cc|||||||||||||||
+run_sample_size_simulation_single_setting|function|dd6ccac050f21ed7|||||||||||||||
 run_simulation_study|function|96e53ff1929bce23|||||||||||||||
 run_simulation_study_surv|function|43dc80c49475d30a|||||||||||||||
+sample_size_simulation|stem|5c198ecda8b45389|02e05c538b09a35e|a7bd8d7886e33c20|-994714256||t19988.7383688658s|6556730b296d7213|119|rds|local|vector|||704.597||
 sim_by_size|function|e6710b91ebed9d63|||||||||||||||
 simulate_dca|function|3bbdeeedacb7a108|||||||||||||||
 simulate_dca_population|function|e0e6c51cd4f5f722|||||||||||||||

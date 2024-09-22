@@ -122,8 +122,15 @@ list(
   tar_target(
     name = sample_size_simulation,
     command = run_sample_size_simulation(
-      n_sim = 10,
+      n_sim = 300, overwrite = FALSE,
       outdir = str_path("output/sample-size-simulation")
+    )
+  ),
+  tar_target(
+    name = expected_regret_simulation,
+    command = run_expected_regret_simulation(
+      n_sim = 300, overwrite = TRUE,
+      outdir = str_path("output/expected-regret-simulation")
     )
   )
 )

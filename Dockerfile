@@ -8,3 +8,9 @@ RUN echo "PS1='\[\e[1;38;2;231;41;138m\]${VIRTUAL_ENV:+[$(basename -- $VIRTUAL_E
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     openssh-client
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ttf-mscorefonts-installer \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+RUN fc-cache -fv

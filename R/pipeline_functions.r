@@ -1256,6 +1256,157 @@ run_evpi_simulation <- function(
 }
 
 
+run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
+    simulation_results_file <- str_path("{outdir}/simulation_results_expected_regret.tsv")
+    if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
+        msg <- cli::col_br_red("Simulation results (expected regret) exist and will not be overwritten")
+        message(msg)
+        expected_regret_simulation_results <- readr::read_tsv(
+            simulation_results_file,
+            show_col_types = FALSE
+        )
+    } else {
+        msg <- cli::col_br_red(str_glue("Starting expected regret simulation with n_sim={n_sim}"))
+        message(msg)
+        # ensure outdir exists
+        dir.create(
+            outdir,
+            showWarnings = FALSE,
+            recursive = TRUE
+        )
+        # each sim setting is a sample size
+        sample_size_list <- c(250, 500, 1000, 2000)
+        expected_regret_simulation_results <- vector("list", length(sample_size_list))
+        # run simulation for each sample size
+        for (i in seq_along(sample_size_list)) {
+            msg <- cli::col_br_magenta(
+                paste0("Running expected regret simulation with sample_size=", sample_size_list[i])
+            )
+            message(msg)
+            expected_regret_simulation_results[[i]] <- purrr::map(
+                seq_len(n_sim),
+                ~ run_expected_regret_simulation_single_run(n = n)
+            )
+        }
+        # combine and save results
+        expected_regretsimulation_results <- dplyr::bind_rows(expected_regret_simulation_results) %>%
+            dplyr::select(
+                threshold, comparison, sample_size,
+                setting_id, run_id,
+                prob, delta
+            )
+        readr::write_tsv(
+            expected_regret_simulation_results,
+            simulation_results_file
+        )
+    }
+
+    # compute population summaries (ground truth)
+    ground_truth_dir <- str_path("{outdir}/ground_truth")
+    if (!dir.exists(ground_truth_dir) || isTRUE(overwrite)) {
+        dir.create(
+            ground_truth_dir,
+            showWarnings = FALSE,
+            recursive = TRUE
+        )
+        f <- get_sample_size_dca(n = 1e6)
+        ggplot2::ggsave(
+            str_path("{ground_truth_dir}/ground_truth_dca.png"),
+            plot(f),
+            width = 14,
+            height = 7.5,
+            dpi = 600
+        )
+        delta_ground_truth <- bayesDCA::plot_delta(f, type = "useful")
+        ggplot2::ggsave(
+            str_path("{ground_truth_dir}/ground_truth_delta_useful.png"),
+            delta_ground_truth,
+            width = 14,
+            height = 7.5,
+            dpi = 600
+        )
+        delta_pair_ground_truth <- bayesDCA::plot_delta(f, type = "pairwise", strategies = c("phat1", "phat0"))
+        ggplot2::ggsave(
+            str_path("{ground_truth_dir}/ground_truth_delta_phat1_vs_phat0.png"),
+            delta_pair_ground_truth,
+            width = 14,
+            height = 7.5,
+            dpi = 600
+        )
+        readr::write_tsv(
+            delta_ground_truth$data %>%
+                dplyr::arrange(threshold) %>%
+                dplyr::filter(threshold %in% seq(0, 0.3, by = 0.05)),
+            str_path("{ground_truth_dir}/ground_truth_delta_useful.tsv")
+        )
+
+        .calib_phat0 <- get_calibration_binary(f$.data$outcomes, f$.data$phat0)
+        .calib_phat1 <- get_calibration_binary(f$.data$outcomes, f$.data$phat1)
+        data.frame(
+            model = c("phat0", "phat1"),
+            true_prevalence = rep(mean(f$.data$outcomes), 2),
+            average_prediction = c(mean(f$.data$phat0), mean(f$.data$phat1)),
+            calibration_oe = c(.calib_phat0$oe, .calib_phat1$oe),
+            calibration_slope = c(.calib_phat0$slope, .calib_phat1$slope),
+            auc = c(
+                pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat0, quiet = TRUE)),
+                pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat1, quiet = TRUE))
+            )
+        ) %>%
+            readr::write_tsv(
+                str_path("{ground_truth_dir}/ground_truth_prev_and_auc.tsv")
+            )
+    }
+
+
+    # post-process results
+    message("Plotting results")
+    d <- sample_size_simulation_results %>%
+        dplyr::filter(threshold <= 0.3) %>%
+        dplyr::filter(
+            # str_detect(comparison, "max"),
+            purrr::map_lgl(threshold, ~ any(dplyr::near(.x, seq(0.1, 0.3, by = 0.05))))
+        ) %>%
+        dplyr::mutate(
+            comparison = factor(
+                comparison,
+                levels = c(
+                    "phat0 vs max(treat all, treat none)",
+                    "phat1 vs max(treat all, treat none)",
+                    "true_p vs max(treat all, treat none)",
+                    "phat1 vs phat0",
+                    "true p vs phat1",
+                    "true p vs phat0"
+                )
+            )
+        )
+    p1 <- d %>%
+        dplyr::group_by(threshold, comparison, sample_size) %>%
+        dplyr::summarize(
+            above95 = mean(prob > 0.95),
+            .groups = "drop"
+        ) %>%
+        ggplot2::ggplot(ggplot2::aes(factor(threshold), above95, fill = ordered(sample_size))) +
+        ggplot2::geom_col(position = "dodge") +
+        ggplot2::facet_wrap(~comparison) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::theme(legend.position = "top") +
+        ggplot2::scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Frequency of P(superior) > 0.95",
+            fill = "Sample size"
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/sample_size_simulation_prob_superior.png"),
+        p1,
+        width = 14,
+        height = 8.5,
+        dpi = 600
+    )
+}
+
 run_sample_size_simulation <- function(n_sim, outdir, overwrite = FALSE) {
     simulation_results_file <- str_path("{outdir}/simulation_results_sample_size.tsv")
     if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
@@ -1265,9 +1416,8 @@ run_sample_size_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             simulation_results_file,
             show_col_types = FALSE
         )
-        return(simulation_results)
     } else {
-        msg <- cli::col_br_red("Starting sample size simulation")
+        msg <- cli::col_br_red(str_glue("Starting sample size simulation with n_sim={n_sim}"))
         message(msg)
         # ensure outdir exists
         dir.create(
@@ -1283,18 +1433,126 @@ run_sample_size_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             msg <- cli::col_br_magenta(paste0("Running sample size simulation with sample_size=", sample_size_list[i]))
             message(msg)
             sample_size_simulation_results[[i]] <- run_sample_size_simulation_single_setting(
-                n_sim = 10,
+                n_sim = n_sim,
                 n = sample_size_list[i]
             )
-            sample_size_simulation_results[[i]]$setting_id <- paste0("setting_", i)
+            sample_size_simulation_results[[i]]$setting_id <- i + 1
         }
         # combine and save results
-        sample_size_simulation_results <- dplyr::bind_rows(sample_size_simulation_results)
+        sample_size_simulation_results <- dplyr::bind_rows(sample_size_simulation_results) %>%
+            dplyr::select(
+                threshold, comparison, sample_size,
+                setting_id, run_id,
+                prob, delta
+            )
         readr::write_tsv(
             sample_size_simulation_results,
             simulation_results_file
         )
     }
 
+    # compute population summaries (ground truth)
+    ground_truth_dir <- str_path("{outdir}/ground_truth")
+    if (!dir.exists(ground_truth_dir) || isTRUE(overwrite)) {
+        dir.create(
+            ground_truth_dir,
+            showWarnings = FALSE,
+            recursive = TRUE
+        )
+        f <- get_sample_size_dca(n = 1e6)
+        ggplot2::ggsave(
+            str_path("{ground_truth_dir}/ground_truth_dca.png"),
+            plot(f),
+            width = 14,
+            height = 7.5,
+            dpi = 600
+        )
+        delta_ground_truth <- bayesDCA::plot_delta(f, type = "useful")
+        ggplot2::ggsave(
+            str_path("{ground_truth_dir}/ground_truth_delta_useful.png"),
+            delta_ground_truth,
+            width = 14,
+            height = 7.5,
+            dpi = 600
+        )
+        delta_pair_ground_truth <- bayesDCA::plot_delta(f, type = "pairwise", strategies = c("phat1", "phat0"))
+        ggplot2::ggsave(
+            str_path("{ground_truth_dir}/ground_truth_delta_phat1_vs_phat0.png"),
+            delta_pair_ground_truth,
+            width = 14,
+            height = 7.5,
+            dpi = 600
+        )
+        readr::write_tsv(
+            delta_ground_truth$data %>%
+                dplyr::arrange(threshold) %>%
+                dplyr::filter(threshold %in% seq(0, 0.3, by = 0.05)),
+            str_path("{ground_truth_dir}/ground_truth_delta_useful.tsv")
+        )
+
+        .calib_phat0 <- get_calibration_binary(f$.data$outcomes, f$.data$phat0)
+        .calib_phat1 <- get_calibration_binary(f$.data$outcomes, f$.data$phat1)
+        data.frame(
+            model = c("phat0", "phat1"),
+            true_prevalence = rep(mean(f$.data$outcomes), 2),
+            average_prediction = c(mean(f$.data$phat0), mean(f$.data$phat1)),
+            calibration_oe = c(.calib_phat0$oe, .calib_phat1$oe),
+            calibration_slope = c(.calib_phat0$slope, .calib_phat1$slope),
+            auc = c(
+                pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat0, quiet = TRUE)),
+                pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat1, quiet = TRUE))
+            )
+        ) %>%
+            readr::write_tsv(
+                str_path("{ground_truth_dir}/ground_truth_prev_and_auc.tsv")
+            )
+    }
+
+
     # post-process results
+    message("Plotting results")
+    d <- sample_size_simulation_results %>%
+        dplyr::filter(threshold <= 0.3) %>%
+        dplyr::filter(
+            # str_detect(comparison, "max"),
+            purrr::map_lgl(threshold, ~ any(dplyr::near(.x, seq(0.1, 0.3, by = 0.05))))
+        ) %>%
+        dplyr::mutate(
+            comparison = factor(
+                comparison,
+                levels = c(
+                    "phat0 vs max(treat all, treat none)",
+                    "phat1 vs max(treat all, treat none)",
+                    "true_p vs max(treat all, treat none)",
+                    "phat1 vs phat0",
+                    "true p vs phat1",
+                    "true p vs phat0"
+                )
+            )
+        )
+    p1 <- d %>%
+        dplyr::group_by(threshold, comparison, sample_size) %>%
+        dplyr::summarize(
+            above95 = mean(prob > 0.95),
+            .groups = "drop"
+        ) %>%
+        ggplot2::ggplot(ggplot2::aes(factor(threshold), above95, fill = ordered(sample_size))) +
+        ggplot2::geom_col(position = "dodge") +
+        ggplot2::facet_wrap(~comparison) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::theme(legend.position = "top") +
+        ggplot2::scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Frequency of P(superior) > 0.95",
+            fill = "Sample size"
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/sample_size_simulation_prob_superior.png"),
+        p1,
+        width = 14,
+        height = 8.5,
+        dpi = 600
+    )
 }
