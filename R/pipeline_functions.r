@@ -1329,12 +1329,6 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         )
 
     # compute grouond truth
-    ground_truth_dir <- str_path("{outdir}/ground_truth")
-    dir.create(
-        ground_truth_dir,
-        showWarnings = FALSE,
-        recursive = TRUE
-    )
     msg <- cli::col_br_magenta("Computing ground truth")
     message(msg)
     res_ground_truth <- run_expected_regret_simulation_single_run(n = 1e6, return_dca = TRUE)
@@ -1342,6 +1336,10 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         res_ground_truth$dca,
         strategies = c("phat0", "phat1")
     ) +
+        ggplot2::scale_x_continuous(
+            breaks = seq(0, 0.3, by = 0.05),
+            labels = scales::label_percent(1)
+        ) +
         ggplot2::theme_bw(base_size = 18) +
         ggplot2::theme(
             legend.position = "inside",
@@ -1378,7 +1376,7 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         )
 
     ggplot2::ggsave(
-        str_path("{ground_truth_dir}/ground_truth.png"),
+        str_path("{outdir}/ground_truth.png"),
         ggpubr::ggarrange(
             dca_ground_truth,
             delta_ground_truth,
@@ -1389,6 +1387,7 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         dpi = 600
     )
 
+    # add ground truth to results summary
     results_summary <- dplyr::left_join(
         results_summary,
         res_ground_truth$res %>%
@@ -1401,12 +1400,16 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             threshold, comparison, sample_size, setting_id,
             true_delta, delta_above0, p_above50:p_above95
         )
+
+    # save results summary
     readr::write_tsv(
         results_summary,
         str_path("{ground_truth_dir}/results_summary.tsv")
     )
     rlang::abort("Done")
 
+    # save some ground truth metrics
+    f <- res_ground_truth$dca
     .calib_phat0 <- get_calibration_binary(f$.data$outcomes, f$.data$phat0)
     .calib_phat1 <- get_calibration_binary(f$.data$outcomes, f$.data$phat1)
     data.frame(
@@ -1421,55 +1424,128 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         )
     ) %>%
         readr::write_tsv(
-            str_path("{ground_truth_dir}/ground_truth_prev_and_auc.tsv")
+            str_path("{outdir}/ground_truth_simulation_metrics.tsv")
         )
 
 
     # post-process results
     message("Plotting results")
-    d <- sample_size_simulation_results %>%
-        dplyr::filter(threshold <= 0.3) %>%
+    .odds <- function(p) p / (1 - p)
+    d <- results_summary %>%
         dplyr::filter(
-            # str_detect(comparison, "max"),
+            threshold > 1e-8,
             purrr::map_lgl(threshold, ~ any(dplyr::near(.x, seq(0.1, 0.3, by = 0.05))))
         ) %>%
-        dplyr::mutate(
-            comparison = factor(
-                comparison,
-                levels = c(
-                    "phat0 vs max(treat all, treat none)",
-                    "phat1 vs max(treat all, treat none)",
-                    "true_p vs max(treat all, treat none)",
-                    "phat1 vs phat0",
-                    "true p vs phat1",
-                    "true p vs phat0"
-                )
-            )
-        )
-    p1 <- d %>%
-        dplyr::group_by(threshold, comparison, sample_size) %>%
-        dplyr::summarize(
-            above95 = mean(prob > 0.95),
-            .groups = "drop"
+        # implementation probability is the probability that a given implementation
+        # decision rule spits out "implement" instead of "not implement"
+        tidyr::pivot_longer(
+            cols = dplyr::contains("above"),
+            values_to = "implement_prob",
+            names_to = "implementation_decision_rule"
         ) %>%
-        ggplot2::ggplot(ggplot2::aes(factor(threshold), above95, fill = ordered(sample_size))) +
-        ggplot2::geom_col(position = "dodge") +
-        ggplot2::facet_wrap(~comparison) +
-        ggplot2::theme_bw(base_size = 18) +
-        ggplot2::theme(legend.position = "top") +
-        ggplot2::scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
-        ggplot2::labs(
-            x = "Decision threshold",
-            y = "Frequency of P(superior) > 0.95",
-            fill = "Sample size"
+        dplyr::filter(
+            implementation_decision_rule %in% c(
+                "delta_above0",
+                paste0("p_above", c(80, 95))
+            )
+        ) %>%
+        dplyr::mutate(
+            # one for each risk aversion profile
+            unscaled_regret_0.5 = dplyr::if_else(
+                true_delta < 0,
+                implement_prob * .odds(0.5),
+                1 - implement_prob
+            ),
+            unscaled_regret_0.8 = dplyr::if_else(
+                true_delta < 0,
+                implement_prob * .odds(0.8),
+                1 - implement_prob
+            ),
+            unscaled_regret_0.95 = dplyr::if_else(
+                true_delta < 0,
+                implement_prob * .odds(0.95),
+                1 - implement_prob
+            )
+        ) %>%
+        tidyr::pivot_longer(
+            cols = dplyr::contains("unscaled_regret"),
+            names_transform = \(xx) as.numeric(stringr::str_extract(xx, "\\d+\\.\\d+")),
+            names_to = "risk_aversion",
+            values_to = "unscaled_regret"
         )
 
+    phat0_vs_defaults <- d %>%
+        dplyr::filter(
+            comparison == "phat0 vs max(treat all, treat none)"
+        ) %>%
+        dplyr::mutate(
+            sample_size = factor(
+                paste0("n=", sample_size),
+                levels = paste0("n=", sort(unique(sample_size)))
+            )
+        ) %>%
+        ggplot2::ggplot(
+            ggplot2::aes(
+                x = threshold, y = unscaled_regret,
+                fill = implementation_decision_rule
+            )
+        ) +
+        ggplot2::geom_col(position = ggplot2::position_dodge()) +
+        ggplot2::facet_grid(risk_aversion ~ sample_size) +
+        ggplot2::scale_fill_brewer(palette = "Dark2") +
+        ggplot2::coord_cartesian(ylim = c(0, 10)) +
+        ggplot2::scale_y_continuous(
+            sec.axis = ggplot2::sec_axis(
+                ~.,
+                name = expression(bold("Risk aversion " ~ gamma)),
+                breaks = NULL, labels = NULL
+            ), breaks = seq(0, 10, 2)
+        ) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Expected regret (unscaled)",
+            subtitle = "phat0 vs max(treat all, treat none)",
+            fill = "Implementation\ndecision rule"
+        ) +
+        ggplot2::theme_bw(base_size = 18)
     ggplot2::ggsave(
-        str_path("{outdir}/sample_size_simulation_prob_superior.png"),
-        p1,
-        width = 14,
-        height = 8.5,
-        dpi = 600
+        str_path("{outdir}/expected_regret_phat0_vs_defaults.png"),
+        phat0_vs_defaults,
+        width = 17, height = 9, dpi = 600
+    )
+
+    phat1_vs_phat0 <- d %>%
+        dplyr::filter(
+            comparison == "phat1 vs phat0", risk_aversion == 0.5
+        ) %>%
+        dplyr::mutate(
+            sample_size = factor(
+                paste0("n=", sample_size),
+                levels = paste0("n=", sort(unique(sample_size)))
+            )
+        ) %>%
+        ggplot2::ggplot(
+            ggplot2::aes(
+                x = threshold, y = unscaled_regret,
+                fill = implementation_decision_rule
+            )
+        ) +
+        ggplot2::geom_col(position = ggplot2::position_dodge()) +
+        ggplot2::facet_grid(~sample_size) +
+        ggplot2::coord_cartesian(ylim = c(0, 1)) +
+        ggplot2::scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+        ggplot2::scale_fill_brewer(palette = "Dark2") +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Expected regret (unscaled)",
+            subtitle = "phat1 vs phat0",
+            fill = "Implementation\ndecision rule"
+        ) +
+        ggplot2::theme_bw(base_size = 18)
+    ggplot2::ggsave(
+        str_path("{outdir}/expected_regret_phat1_vs_phat0.png"),
+        phat1_vs_phat0,
+        width = 17, height = 5, dpi = 600
     )
 }
 
