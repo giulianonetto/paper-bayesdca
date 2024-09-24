@@ -1404,9 +1404,8 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
     # save results summary
     readr::write_tsv(
         results_summary,
-        str_path("{ground_truth_dir}/results_summary.tsv")
+        str_path("{outdir}/results_summary.tsv")
     )
-    rlang::abort("Done")
 
     # save some ground truth metrics
     f <- res_ground_truth$dca
@@ -1491,19 +1490,18 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             )
         ) +
         ggplot2::geom_col(position = ggplot2::position_dodge()) +
-        ggplot2::facet_grid(risk_aversion ~ sample_size) +
+        ggplot2::facet_grid(risk_aversion ~ sample_size, scales = "free") +
         ggplot2::scale_fill_brewer(palette = "Dark2") +
-        ggplot2::coord_cartesian(ylim = c(0, 10)) +
         ggplot2::scale_y_continuous(
             sec.axis = ggplot2::sec_axis(
                 ~.,
                 name = expression(bold("Risk aversion " ~ gamma)),
                 breaks = NULL, labels = NULL
-            ), breaks = seq(0, 10, 2)
+            ), breaks = scales::pretty_breaks(5)
         ) +
         ggplot2::labs(
             x = "Decision threshold",
-            y = "Expected regret (unscaled)",
+            y = "Frequentist Risk (unscaled)",
             subtitle = "phat0 vs max(treat all, treat none)",
             fill = "Implementation\ndecision rule"
         ) +
@@ -1516,7 +1514,7 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
 
     phat1_vs_phat0 <- d %>%
         dplyr::filter(
-            comparison == "phat1 vs phat0", risk_aversion == 0.5
+            comparison == "phat1 vs phat0"
         ) %>%
         dplyr::mutate(
             sample_size = factor(
@@ -1531,13 +1529,18 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             )
         ) +
         ggplot2::geom_col(position = ggplot2::position_dodge()) +
-        ggplot2::facet_grid(~sample_size) +
-        ggplot2::coord_cartesian(ylim = c(0, 1)) +
-        ggplot2::scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+        ggplot2::facet_grid(risk_aversion ~ sample_size, scales = "free") +
+        ggplot2::scale_y_continuous(
+            sec.axis = ggplot2::sec_axis(
+                ~.,
+                name = expression(bold("Risk aversion " ~ gamma)),
+                breaks = NULL, labels = NULL
+            ), breaks = scales::pretty_breaks(5)
+        ) +
         ggplot2::scale_fill_brewer(palette = "Dark2") +
         ggplot2::labs(
             x = "Decision threshold",
-            y = "Expected regret (unscaled)",
+            y = "Frequentist Risk (unscaled)",
             subtitle = "phat1 vs phat0",
             fill = "Implementation\ndecision rule"
         ) +

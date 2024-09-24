@@ -1656,9 +1656,9 @@ get_sample_size_dca <- function(n) {
   x2 <- rnorm(n)
   x3 <- rnorm(n)
   x4 <- rnorm(n)
-  true_lp <- -2.5 + 0.5 * x1 + -0.5 * x2 + 1.5 * x3 + -1.7 * x4
-  lp0 <- -1.85 + .5 * x1 + -.5 * x2
-  lp1 <- -1.7 + 0.4 * x1 + 1.1 * x3
+  true_lp <- -2.5 + 0.5 * x1 + -1.5 * x2 + 1.5 * x3 + -1.7 * x4
+  lp0 <- -4.5 + 0.38 * x1 - 2.2 * x2 + -2.2 * x4
+  lp1 <- -1.5 + 0.3 * x1 + 0.9 * x3
   y <- rbinom(n, size = 1, prob = plogis(true_lp))
   d <- data.frame(outcomes = y, phat0 = plogis(lp0), phat1 = plogis(lp1), true_p = plogis(true_lp))
   f <- bayesDCA::dca(d, thresholds = seq(0, 0.3, 0.01))

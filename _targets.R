@@ -129,7 +129,7 @@ list(
   tar_target(
     name = expected_regret_simulation,
     command = run_expected_regret_simulation(
-      n_sim = 300, overwrite = TRUE,
+      n_sim = 50, overwrite = F,
       outdir = str_path("output/expected-regret-simulation")
     )
   )
