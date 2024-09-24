@@ -1283,13 +1283,17 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
                 paste0("Running expected regret simulation with sample_size=", sample_size_list[i])
             )
             message(msg)
-            expected_regret_simulation_results[[i]] <- purrr::map(
+            expected_regret_simulation_results[[i]] <- purrr::map_df(
                 seq_len(n_sim),
-                ~ run_expected_regret_simulation_single_run(n = n)
+                ~ run_expected_regret_simulation_single_run(n = sample_size_list[[i]]),
+                .id = "run_id"
             )
         }
         # combine and save results
-        expected_regretsimulation_results <- dplyr::bind_rows(expected_regret_simulation_results) %>%
+        expected_regret_simulation_results <- dplyr::bind_rows(
+            expected_regret_simulation_results,
+            .id = "setting_id"
+        ) %>%
             dplyr::select(
                 threshold, comparison, sample_size,
                 setting_id, run_id,
@@ -1301,62 +1305,124 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         )
     }
 
-    # compute population summaries (ground truth)
-    ground_truth_dir <- str_path("{outdir}/ground_truth")
-    if (!dir.exists(ground_truth_dir) || isTRUE(overwrite)) {
-        dir.create(
-            ground_truth_dir,
-            showWarnings = FALSE,
-            recursive = TRUE
-        )
-        f <- get_sample_size_dca(n = 1e6)
-        ggplot2::ggsave(
-            str_path("{ground_truth_dir}/ground_truth_dca.png"),
-            plot(f),
-            width = 14,
-            height = 7.5,
-            dpi = 600
-        )
-        delta_ground_truth <- bayesDCA::plot_delta(f, type = "useful")
-        ggplot2::ggsave(
-            str_path("{ground_truth_dir}/ground_truth_delta_useful.png"),
-            delta_ground_truth,
-            width = 14,
-            height = 7.5,
-            dpi = 600
-        )
-        delta_pair_ground_truth <- bayesDCA::plot_delta(f, type = "pairwise", strategies = c("phat1", "phat0"))
-        ggplot2::ggsave(
-            str_path("{ground_truth_dir}/ground_truth_delta_phat1_vs_phat0.png"),
-            delta_pair_ground_truth,
-            width = 14,
-            height = 7.5,
-            dpi = 600
-        )
-        readr::write_tsv(
-            delta_ground_truth$data %>%
-                dplyr::arrange(threshold) %>%
-                dplyr::filter(threshold %in% seq(0, 0.3, by = 0.05)),
-            str_path("{ground_truth_dir}/ground_truth_delta_useful.tsv")
+    # summarise results
+    results_summary <- expected_regret_simulation_results %>%
+        dplyr::group_by(
+            threshold, comparison, sample_size, setting_id
+        ) %>%
+        dplyr::summarise(
+            delta_above0 = mean(delta > 0),
+            p_above50 = mean(prob > 0.5),
+            p_above55 = mean(prob > 0.55),
+            p_above60 = mean(prob > 0.6),
+            p_above65 = mean(prob > 0.65),
+            p_above70 = mean(prob > 0.7),
+            p_above75 = mean(prob > 0.75),
+            p_above80 = mean(prob > 0.8),
+            p_above85 = mean(prob > 0.85),
+            p_above90 = mean(prob > 0.9),
+            p_above95 = mean(prob > 0.95),
+            .groups = "drop"
+        ) %>%
+        dplyr::arrange(
+            comparison, sample_size, setting_id, threshold
         )
 
-        .calib_phat0 <- get_calibration_binary(f$.data$outcomes, f$.data$phat0)
-        .calib_phat1 <- get_calibration_binary(f$.data$outcomes, f$.data$phat1)
-        data.frame(
-            model = c("phat0", "phat1"),
-            true_prevalence = rep(mean(f$.data$outcomes), 2),
-            average_prediction = c(mean(f$.data$phat0), mean(f$.data$phat1)),
-            calibration_oe = c(.calib_phat0$oe, .calib_phat1$oe),
-            calibration_slope = c(.calib_phat0$slope, .calib_phat1$slope),
-            auc = c(
-                pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat0, quiet = TRUE)),
-                pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat1, quiet = TRUE))
-            )
-        ) %>%
-            readr::write_tsv(
-                str_path("{ground_truth_dir}/ground_truth_prev_and_auc.tsv")
-            )
-    }
+    # compute grouond truth
+    ground_truth_dir <- str_path("{outdir}/ground_truth")
+    dir.create(
+        ground_truth_dir,
+        showWarnings = FALSE,
+        recursive = TRUE
+    )
+    msg <- cli::col_br_magenta("Computing ground truth")
+    message(msg)
+    res_ground_truth <- run_expected_regret_simulation_single_run(n = 1e6, return_dca = TRUE)
+    dca_ground_truth <- plot(
+        res_ground_truth$dca,
+        strategies = c("phat0", "phat1")
+    ) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::theme(
+            legend.position = "inside",
+            legend.position.inside = c(0.85, 0.8),
+            legend.text = ggplot2::element_text(size = 11)
+        ) +
+        ggplot2::labs(
+            subtitle = "True decision curves"
+        )
+    delta_ground_truth <- res_ground_truth$res %>%
+        ggplot2::ggplot(ggplot2::aes(threshold, delta)) +
+        ggplot2::geom_line(
+            ggplot2::aes(color = comparison),
+            linewidth = 1
+        ) +
+        ggplot2::geom_hline(yintercept = 0, linetype = 2, alpha = 0.7) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::theme(
+            legend.position = "inside",
+            legend.position.inside = c(0.65, 0.15),
+            legend.text = ggplot2::element_text(size = 11)
+        ) +
+        ggplot2::coord_cartesian(ylim = c(-0.05, 0.1)) +
+        ggplot2::scale_color_brewer(palette = "Set1") +
+        ggplot2::scale_x_continuous(
+            breaks = seq(0, 0.3, by = 0.05),
+            labels = scales::label_percent(1)
+        ) +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = latex2exp::TeX("$\\Delta_{NB}$"),
+            color = NULL,
+            subtitle = "True deltas"
+        )
+
+    ggplot2::ggsave(
+        str_path("{ground_truth_dir}/ground_truth.png"),
+        ggpubr::ggarrange(
+            dca_ground_truth,
+            delta_ground_truth,
+            ncol = 2
+        ),
+        width = 15,
+        height = 5.5,
+        dpi = 600
+    )
+
+    results_summary <- dplyr::left_join(
+        results_summary,
+        res_ground_truth$res %>%
+            dplyr::select(
+                threshold, comparison, true_delta := delta
+            ),
+        by = c("threshold", "comparison")
+    ) %>%
+        dplyr::select(
+            threshold, comparison, sample_size, setting_id,
+            true_delta, delta_above0, p_above50:p_above95
+        )
+    readr::write_tsv(
+        results_summary,
+        str_path("{ground_truth_dir}/results_summary.tsv")
+    )
+    rlang::abort("Done")
+
+    .calib_phat0 <- get_calibration_binary(f$.data$outcomes, f$.data$phat0)
+    .calib_phat1 <- get_calibration_binary(f$.data$outcomes, f$.data$phat1)
+    data.frame(
+        model = c("phat0", "phat1"),
+        true_prevalence = rep(mean(f$.data$outcomes), 2),
+        average_prediction = c(mean(f$.data$phat0), mean(f$.data$phat1)),
+        calibration_oe = c(.calib_phat0$oe, .calib_phat1$oe),
+        calibration_slope = c(.calib_phat0$slope, .calib_phat1$slope),
+        auc = c(
+            pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat0, quiet = TRUE)),
+            pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat1, quiet = TRUE))
+        )
+    ) %>%
+        readr::write_tsv(
+            str_path("{ground_truth_dir}/ground_truth_prev_and_auc.tsv")
+        )
 
 
     # post-process results

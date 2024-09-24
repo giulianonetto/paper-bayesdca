@@ -1,6 +1,6 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 .get_cutpoints|function|9c2dbcbdf76e1f71|||||||||||||||
-.Random.seed|object|aa5ab1a6f5c0bf32|||||||||||||||
+.Random.seed|object|d1817251a244403b|||||||||||||||
 .seed|object|45914e388762c03b|||||||||||||||
 adnex_case_study|stem|66251d273cd7b69f|8da817af14dd58c0|1b06d32650e6a3ac|505499449||t19773.2140472761s|ecedd8da0f857243|16271075|rds|local|vector|||1.175||
 compare_bdca_vs_dcurves|function|2e99e4d172707d83|||||||||||||||
@@ -9,6 +9,7 @@ compute_nb|function|c33e338abcc2f4ca|||||||||||||||
 compute_nb_surv|function|c95b8e4b0bbd300f|||||||||||||||
 evpi_simulation|stem|f3b8990243a5305d|3cbd54c405b49687|7d1269d1354b020f|33557732||t19731.482974537s|7dead8e41ac4f62d|130|rds|local|vector|||17183.219||
 evpi_val2|function|5001de778315c97d|||||||||||||||
+expected_regret_simulation|stem||a2a55ffe1b1a8f35|4b516f97b467ccc8|-1503587918||t19990.2312847155s||0|rds|local|vector|||590.452||Done
 expit|function|d42f2e267dbac39a|||||||||||||||
 fit_bootstrap_dcurves|function|c2c2201e9eb77627|||||||||||||||
 gen_surv_data|function|09f75e7617461955|||||||||||||||
@@ -49,6 +50,8 @@ run_case_study|function|30431fafac5daf71|||||||||||||||
 run_dca_simulation|function|bb17b3b385d1ce06|||||||||||||||
 run_dca_simulation_surv|function|f468eb518d644131|||||||||||||||
 run_evpi_simulation|function|53693d81cf240500|||||||||||||||
+run_expected_regret_simulation|function|9684b5defbbe2349|||||||||||||||
+run_expected_regret_simulation_single_run|function|a9254fa6f2197140|||||||||||||||
 run_gusto_trial_example|function|0761a52c7dab985c|||||||||||||||
 run_sample_size_simulation|function|9e06e48102696bb5|||||||||||||||
 run_sample_size_simulation_single_run|function|65060a9b1e5881cc|||||||||||||||
