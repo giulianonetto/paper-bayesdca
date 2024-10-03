@@ -1275,7 +1275,14 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             recursive = TRUE
         )
         # each sim setting is a sample size
-        sample_size_list <- c(250, 500, 1000, 2000)
+        expected_events <- c(50, 100, 200)
+        sample_size_list <- expected_events / 0.2
+        message(cli::col_br_red(
+            paste0(
+                "sample_size_list: ",
+                paste0(sample_size_list, collapse = ", ")
+            )
+        ))
         expected_regret_simulation_results <- vector("list", length(sample_size_list))
         # run simulation for each sample size
         for (i in seq_along(sample_size_list)) {
@@ -1295,7 +1302,7 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             .id = "setting_id"
         ) %>%
             dplyr::select(
-                threshold, comparison, sample_size,
+                threshold, decision_strategy, sample_size,
                 setting_id, run_id,
                 prob, delta
             )
@@ -1305,10 +1312,40 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         )
     }
 
+    # compute grouond truth
+    msg <- cli::col_br_magenta("Computing ground truth")
+    message(msg)
+    dca_ground_truth <- get_sample_size_dca(n = 2e6)
+    dca_ground_truth_plot <- plot(
+        dca_ground_truth,
+        strategies = c("phat0", "phat1")
+    ) +
+        ggplot2::scale_x_continuous(
+            breaks = seq(0, 0.3, by = 0.05),
+            labels = scales::label_percent(1)
+        ) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::theme(
+            legend.position = "inside",
+            legend.position.inside = c(0.85, 0.8),
+            legend.text = ggplot2::element_text(size = 11)
+        ) +
+        ggplot2::labs(
+            subtitle = "True decision curves"
+        )
+
+    ggplot2::ggsave(
+        str_path("{outdir}/ground_truth.png"),
+        dca_ground_truth_plot,
+        width = 9,
+        height = 5.5,
+        dpi = 600
+    )
+
     # summarise results
     results_summary <- expected_regret_simulation_results %>%
         dplyr::group_by(
-            threshold, comparison, sample_size, setting_id
+            threshold, decision_strategy, sample_size, setting_id
         ) %>%
         dplyr::summarise(
             delta_above0 = mean(delta > 0),
@@ -1325,80 +1362,7 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             .groups = "drop"
         ) %>%
         dplyr::arrange(
-            comparison, sample_size, setting_id, threshold
-        )
-
-    # compute grouond truth
-    msg <- cli::col_br_magenta("Computing ground truth")
-    message(msg)
-    res_ground_truth <- run_expected_regret_simulation_single_run(n = 1e6, return_dca = TRUE)
-    dca_ground_truth <- plot(
-        res_ground_truth$dca,
-        strategies = c("phat0", "phat1")
-    ) +
-        ggplot2::scale_x_continuous(
-            breaks = seq(0, 0.3, by = 0.05),
-            labels = scales::label_percent(1)
-        ) +
-        ggplot2::theme_bw(base_size = 18) +
-        ggplot2::theme(
-            legend.position = "inside",
-            legend.position.inside = c(0.85, 0.8),
-            legend.text = ggplot2::element_text(size = 11)
-        ) +
-        ggplot2::labs(
-            subtitle = "True decision curves"
-        )
-    delta_ground_truth <- res_ground_truth$res %>%
-        ggplot2::ggplot(ggplot2::aes(threshold, delta)) +
-        ggplot2::geom_line(
-            ggplot2::aes(color = comparison),
-            linewidth = 1
-        ) +
-        ggplot2::geom_hline(yintercept = 0, linetype = 2, alpha = 0.7) +
-        ggplot2::theme_bw(base_size = 18) +
-        ggplot2::theme(
-            legend.position = "inside",
-            legend.position.inside = c(0.65, 0.15),
-            legend.text = ggplot2::element_text(size = 11)
-        ) +
-        ggplot2::coord_cartesian(ylim = c(-0.05, 0.1)) +
-        ggplot2::scale_color_brewer(palette = "Set1") +
-        ggplot2::scale_x_continuous(
-            breaks = seq(0, 0.3, by = 0.05),
-            labels = scales::label_percent(1)
-        ) +
-        ggplot2::labs(
-            x = "Decision threshold",
-            y = latex2exp::TeX("$\\Delta_{NB}$"),
-            color = NULL,
-            subtitle = "True deltas"
-        )
-
-    ggplot2::ggsave(
-        str_path("{outdir}/ground_truth.png"),
-        ggpubr::ggarrange(
-            dca_ground_truth,
-            delta_ground_truth,
-            ncol = 2
-        ),
-        width = 15,
-        height = 5.5,
-        dpi = 600
-    )
-
-    # add ground truth to results summary
-    results_summary <- dplyr::left_join(
-        results_summary,
-        res_ground_truth$res %>%
-            dplyr::select(
-                threshold, comparison, true_delta := delta
-            ),
-        by = c("threshold", "comparison")
-    ) %>%
-        dplyr::select(
-            threshold, comparison, sample_size, setting_id,
-            true_delta, delta_above0, p_above50:p_above95
+            decision_strategy, sample_size, setting_id, threshold
         )
 
     # save results summary
@@ -1408,31 +1372,33 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
     )
 
     # save some ground truth metrics
-    f <- res_ground_truth$dca
-    .calib_phat0 <- get_calibration_binary(f$.data$outcomes, f$.data$phat0)
-    .calib_phat1 <- get_calibration_binary(f$.data$outcomes, f$.data$phat1)
-    data.frame(
+    groud_truth_data <- dca_ground_truth$.data
+    .calib_phat0 <- get_calibration_binary(groud_truth_data$outcomes, groud_truth_data$phat0)
+    .calib_phat1 <- get_calibration_binary(groud_truth_data$outcomes, groud_truth_data$phat1)
+    perf_summaries <- data.frame(
         model = c("phat0", "phat1"),
-        true_prevalence = rep(mean(f$.data$outcomes), 2),
-        average_prediction = c(mean(f$.data$phat0), mean(f$.data$phat1)),
+        true_prevalence = rep(mean(groud_truth_data$outcomes), 2),
+        average_prediction = c(mean(groud_truth_data$phat0), mean(groud_truth_data$phat1)),
         calibration_oe = c(.calib_phat0$oe, .calib_phat1$oe),
         calibration_slope = c(.calib_phat0$slope, .calib_phat1$slope),
         auc = c(
-            pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat0, quiet = TRUE)),
-            pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat1, quiet = TRUE))
+            pROC::auc(pROC::roc(groud_truth_data$outcomes, groud_truth_data$phat0, quiet = TRUE)),
+            pROC::auc(pROC::roc(groud_truth_data$outcomes, groud_truth_data$phat1, quiet = TRUE))
         )
-    ) %>%
-        readr::write_tsv(
-            str_path("{outdir}/ground_truth_simulation_metrics.tsv")
-        )
+    )
+
+    readr::write_tsv(
+        perf_summaries,
+        str_path("{outdir}/ground_truth_simulation_metrics.tsv")
+    )
 
 
     # post-process results
-    message("Plotting results")
+    rlang::inform("Plotting results")
     .odds <- function(p) p / (1 - p)
-    d <- results_summary %>%
+    # here the correct decision is always implement (threaholds >= 0.1 at least)
+    risk_results <- results_summary %>%
         dplyr::filter(
-            threshold > 1e-8,
             purrr::map_lgl(threshold, ~ any(dplyr::near(.x, seq(0.1, 0.3, by = 0.05))))
         ) %>%
         # implementation probability is the probability that a given implementation
@@ -1445,259 +1411,193 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         dplyr::filter(
             implementation_decision_rule %in% c(
                 "delta_above0",
-                paste0("p_above", c(80, 95))
+                paste0("p_above", c(50, 80, 90))
             )
         ) %>%
         dplyr::mutate(
             # one for each risk aversion profile
-            unscaled_regret_0.5 = dplyr::if_else(
-                true_delta < 0,
+            unscaled_risk_0.5 = if_else(
+                decision_strategy == "phat0",
                 implement_prob * .odds(0.5),
                 1 - implement_prob
             ),
-            unscaled_regret_0.8 = dplyr::if_else(
-                true_delta < 0,
+            unscaled_risk_0.8 = if_else(
+                decision_strategy == "phat0",
                 implement_prob * .odds(0.8),
                 1 - implement_prob
             ),
-            unscaled_regret_0.95 = dplyr::if_else(
-                true_delta < 0,
-                implement_prob * .odds(0.95),
+            unscaled_risk_0.9 = if_else(
+                decision_strategy == "phat0",
+                implement_prob * .odds(0.9),
                 1 - implement_prob
             )
         ) %>%
         tidyr::pivot_longer(
-            cols = dplyr::contains("unscaled_regret"),
+            cols = dplyr::contains("unscaled_risk"),
+            names_to = "risk_aversion_parameter",
             names_transform = \(xx) as.numeric(stringr::str_extract(xx, "\\d+\\.\\d+")),
-            names_to = "risk_aversion",
-            values_to = "unscaled_regret"
-        )
-
-    phat0_vs_defaults <- d %>%
-        dplyr::filter(
-            comparison == "phat0 vs max(treat all, treat none)"
+            values_to = "unscaled_risk"
         ) %>%
         dplyr::mutate(
+            setting_label = if_else(
+                decision_strategy == "phat1",
+                "Implement",
+                paste0("Not implement\n(", risk_aversion_parameter, ")")
+            ),
             sample_size = factor(
-                paste0("n=", sample_size),
-                levels = paste0("n=", sort(unique(sample_size)))
-            )
-        ) %>%
-        ggplot2::ggplot(
-            ggplot2::aes(
-                x = threshold, y = unscaled_regret,
-                fill = implementation_decision_rule
-            )
-        ) +
-        ggplot2::geom_col(position = ggplot2::position_dodge()) +
-        ggplot2::facet_grid(risk_aversion ~ sample_size, scales = "free") +
-        ggplot2::scale_fill_brewer(palette = "Dark2") +
-        ggplot2::scale_y_continuous(
-            sec.axis = ggplot2::sec_axis(
-                ~.,
-                name = expression(bold("Risk aversion " ~ gamma)),
-                breaks = NULL, labels = NULL
-            ), breaks = scales::pretty_breaks(5)
-        ) +
-        ggplot2::labs(
-            x = "Decision threshold",
-            y = "Frequentist Risk (unscaled)",
-            subtitle = "phat0 vs max(treat all, treat none)",
-            fill = "Implementation\ndecision rule"
-        ) +
-        ggplot2::theme_bw(base_size = 18)
-    ggplot2::ggsave(
-        str_path("{outdir}/expected_regret_phat0_vs_defaults.png"),
-        phat0_vs_defaults,
-        width = 17, height = 9, dpi = 600
-    )
-
-    phat1_vs_phat0 <- d %>%
-        dplyr::filter(
-            comparison == "phat1 vs phat0"
-        ) %>%
-        dplyr::mutate(
-            sample_size = factor(
-                paste0("n=", sample_size),
-                levels = paste0("n=", sort(unique(sample_size)))
-            )
-        ) %>%
-        ggplot2::ggplot(
-            ggplot2::aes(
-                x = threshold, y = unscaled_regret,
-                fill = implementation_decision_rule
-            )
-        ) +
-        ggplot2::geom_col(position = ggplot2::position_dodge()) +
-        ggplot2::facet_grid(risk_aversion ~ sample_size, scales = "free") +
-        ggplot2::scale_y_continuous(
-            sec.axis = ggplot2::sec_axis(
-                ~.,
-                name = expression(bold("Risk aversion " ~ gamma)),
-                breaks = NULL, labels = NULL
-            ), breaks = scales::pretty_breaks(5)
-        ) +
-        ggplot2::scale_fill_brewer(palette = "Dark2") +
-        ggplot2::labs(
-            x = "Decision threshold",
-            y = "Frequentist Risk (unscaled)",
-            subtitle = "phat1 vs phat0",
-            fill = "Implementation\ndecision rule"
-        ) +
-        ggplot2::theme_bw(base_size = 18)
-    ggplot2::ggsave(
-        str_path("{outdir}/expected_regret_phat1_vs_phat0.png"),
-        phat1_vs_phat0,
-        width = 17, height = 5, dpi = 600
-    )
-}
-
-run_sample_size_simulation <- function(n_sim, outdir, overwrite = FALSE) {
-    simulation_results_file <- str_path("{outdir}/simulation_results_sample_size.tsv")
-    if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
-        msg <- cli::col_br_red("Simulation results (sample size) exist and will not be overwritten")
-        message(msg)
-        sample_size_simulation_results <- readr::read_tsv(
-            simulation_results_file,
-            show_col_types = FALSE
-        )
-    } else {
-        msg <- cli::col_br_red(str_glue("Starting sample size simulation with n_sim={n_sim}"))
-        message(msg)
-        # ensure outdir exists
-        dir.create(
-            outdir,
-            showWarnings = FALSE,
-            recursive = TRUE
-        )
-        # each sim setting is a sample size
-        sample_size_list <- c(250, 500, 1000, 2000)
-        sample_size_simulation_results <- vector("list", length(sample_size_list))
-        # run simulation for each sample size
-        for (i in seq_along(sample_size_list)) {
-            msg <- cli::col_br_magenta(paste0("Running sample size simulation with sample_size=", sample_size_list[i]))
-            message(msg)
-            sample_size_simulation_results[[i]] <- run_sample_size_simulation_single_setting(
-                n_sim = n_sim,
-                n = sample_size_list[i]
-            )
-            sample_size_simulation_results[[i]]$setting_id <- i + 1
-        }
-        # combine and save results
-        sample_size_simulation_results <- dplyr::bind_rows(sample_size_simulation_results) %>%
-            dplyr::select(
-                threshold, comparison, sample_size,
-                setting_id, run_id,
-                prob, delta
-            )
-        readr::write_tsv(
-            sample_size_simulation_results,
-            simulation_results_file
-        )
-    }
-
-    # compute population summaries (ground truth)
-    ground_truth_dir <- str_path("{outdir}/ground_truth")
-    if (!dir.exists(ground_truth_dir) || isTRUE(overwrite)) {
-        dir.create(
-            ground_truth_dir,
-            showWarnings = FALSE,
-            recursive = TRUE
-        )
-        f <- get_sample_size_dca(n = 1e6)
-        ggplot2::ggsave(
-            str_path("{ground_truth_dir}/ground_truth_dca.png"),
-            plot(f),
-            width = 14,
-            height = 7.5,
-            dpi = 600
-        )
-        delta_ground_truth <- bayesDCA::plot_delta(f, type = "useful")
-        ggplot2::ggsave(
-            str_path("{ground_truth_dir}/ground_truth_delta_useful.png"),
-            delta_ground_truth,
-            width = 14,
-            height = 7.5,
-            dpi = 600
-        )
-        delta_pair_ground_truth <- bayesDCA::plot_delta(f, type = "pairwise", strategies = c("phat1", "phat0"))
-        ggplot2::ggsave(
-            str_path("{ground_truth_dir}/ground_truth_delta_phat1_vs_phat0.png"),
-            delta_pair_ground_truth,
-            width = 14,
-            height = 7.5,
-            dpi = 600
-        )
-        readr::write_tsv(
-            delta_ground_truth$data %>%
-                dplyr::arrange(threshold) %>%
-                dplyr::filter(threshold %in% seq(0, 0.3, by = 0.05)),
-            str_path("{ground_truth_dir}/ground_truth_delta_useful.tsv")
-        )
-
-        .calib_phat0 <- get_calibration_binary(f$.data$outcomes, f$.data$phat0)
-        .calib_phat1 <- get_calibration_binary(f$.data$outcomes, f$.data$phat1)
-        data.frame(
-            model = c("phat0", "phat1"),
-            true_prevalence = rep(mean(f$.data$outcomes), 2),
-            average_prediction = c(mean(f$.data$phat0), mean(f$.data$phat1)),
-            calibration_oe = c(.calib_phat0$oe, .calib_phat1$oe),
-            calibration_slope = c(.calib_phat0$slope, .calib_phat1$slope),
-            auc = c(
-                pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat0, quiet = TRUE)),
-                pROC::auc(pROC::roc(f$.data$outcomes, f$.data$phat1, quiet = TRUE))
-            )
-        ) %>%
-            readr::write_tsv(
-                str_path("{ground_truth_dir}/ground_truth_prev_and_auc.tsv")
-            )
-    }
-
-
-    # post-process results
-    message("Plotting results")
-    d <- sample_size_simulation_results %>%
-        dplyr::filter(threshold <= 0.3) %>%
-        dplyr::filter(
-            # str_detect(comparison, "max"),
-            purrr::map_lgl(threshold, ~ any(dplyr::near(.x, seq(0.1, 0.3, by = 0.05))))
-        ) %>%
-        dplyr::mutate(
-            comparison = factor(
-                comparison,
+                paste0("N=", sample_size),
+                levels = paste0("N=", sort(unique(sample_size)))
+            ),
+            implementation_decision_rule = dplyr::case_match(
+                implementation_decision_rule,
+                "delta_above0" ~ "Point estimate > 0",
+                "p_above50" ~ "P(best) > 50%",
+                "p_above80" ~ "P(best) > 80%",
+                "p_above90" ~ "P(best) > 90%"
+            ),
+            implementation_decision_rule = factor(
+                implementation_decision_rule,
                 levels = c(
-                    "phat0 vs max(treat all, treat none)",
-                    "phat1 vs max(treat all, treat none)",
-                    "true_p vs max(treat all, treat none)",
-                    "phat1 vs phat0",
-                    "true p vs phat1",
-                    "true p vs phat0"
+                    "Point estimate > 0",
+                    "P(best) > 50%",
+                    "P(best) > 80%",
+                    "P(best) > 90%"
                 )
             )
         )
-    p1 <- d %>%
-        dplyr::group_by(threshold, comparison, sample_size) %>%
-        dplyr::summarize(
-            above95 = mean(prob > 0.95),
-            .groups = "drop"
-        ) %>%
-        ggplot2::ggplot(ggplot2::aes(factor(threshold), above95, fill = ordered(sample_size))) +
-        ggplot2::geom_col(position = "dodge") +
-        ggplot2::facet_wrap(~comparison) +
-        ggplot2::theme_bw(base_size = 18) +
-        ggplot2::theme(legend.position = "top") +
-        ggplot2::scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+
+    freq_risk <- risk_results %>%
+        ggplot2::ggplot(
+            ggplot2::aes(
+                x = threshold, y = unscaled_risk,
+                fill = implementation_decision_rule
+            )
+        ) +
+        ggplot2::geom_col(position = ggplot2::position_dodge()) +
+        ggplot2::facet_grid(setting_label ~ sample_size, scales = "free") +
+        ggplot2::scale_fill_brewer(palette = "Dark2") +
         ggplot2::labs(
             x = "Decision threshold",
-            y = "Frequency of P(superior) > 0.95",
-            fill = "Sample size"
-        )
+            y = "Frequentist Risk (unscaled)",
+            fill = "Implementation\ndecision rule"
+        ) +
+        ggplot2::theme_bw(base_size = 18)
 
     ggplot2::ggsave(
-        str_path("{outdir}/sample_size_simulation_prob_superior.png"),
-        p1,
-        width = 14,
-        height = 8.5,
-        dpi = 600
+        str_path("{outdir}/frequentist_risk.png"),
+        freq_risk,
+        width = 17, height = 8.5, dpi = 600
+    )
+
+    bayes_risk_results <- risk_results %>%
+        dplyr::select(threshold, sample_size, implementation_decision_rule, setting_label, unscaled_risk) %>%
+        unique() %>%
+        tidyr::pivot_wider(
+            id_cols = c(threshold, sample_size, implementation_decision_rule),
+            names_from = setting_label,
+            values_from = unscaled_risk
+        ) %>%
+        dplyr::mutate(
+            bayes_risk_uniform_0.5 = Implement * 0.5 + `Not implement\n(0.5)` * 0.5,
+            bayes_risk_uniform_0.8 = Implement * 0.5 + `Not implement\n(0.8)` * 0.5,
+            bayes_risk_uniform_0.9 = Implement * 0.5 + `Not implement\n(0.9)` * 0.5,
+            bayes_risk_skeptical_0.5 = Implement * 0.25 + `Not implement\n(0.5)` * 0.75,
+            bayes_risk_skeptical_0.8 = Implement * 0.25 + `Not implement\n(0.8)` * 0.75,
+            bayes_risk_skeptical_0.9 = Implement * 0.25 + `Not implement\n(0.9)` * 0.75,
+            bayes_risk_optimistic_0.5 = Implement * 0.75 + `Not implement\n(0.5)` * 0.25,
+            bayes_risk_optimistic_0.8 = Implement * 0.75 + `Not implement\n(0.8)` * 0.25,
+            bayes_risk_optimistic_0.9 = Implement * 0.75 + `Not implement\n(0.9)` * 0.25
+        ) %>%
+        dplyr::select(
+            threshold, sample_size, implementation_decision_rule,
+            dplyr::contains("bayes_risk")
+        ) %>%
+        tidyr::pivot_longer(
+            cols = dplyr::contains("bayes_risk"),
+            names_to = "risk_aversion_parameter",
+            values_to = "bayes_risk",
+            names_transform = \(xx) paste0(
+                stringr::str_extract(xx, "\\d+\\.\\d+"),
+                "_",
+                stringr::str_extract(xx, "uniform|skeptical|optimistic")
+            )
+        ) %>%
+        dplyr::mutate(
+            prior = stringr::str_extract(risk_aversion_parameter, "uniform|skeptical|optimistic"),
+            risk_aversion_parameter = as.numeric(stringr::str_extract(risk_aversion_parameter, "\\d+\\.\\d+"))
+        )
+    bayes_risk_plot <- bayes_risk_results %>%
+        dplyr::filter(prior == "uniform") %>%
+        ggplot2::ggplot(
+            ggplot2::aes(
+                x = threshold, y = bayes_risk,
+                fill = implementation_decision_rule
+            )
+        ) +
+        ggplot2::geom_col(position = ggplot2::position_dodge()) +
+        ggplot2::facet_grid(risk_aversion_parameter ~ sample_size, scales = "free") +
+        ggplot2::scale_fill_brewer(palette = "Dark2") +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Bayes Risk (unscaled)",
+            fill = "Implementation\ndecision rule"
+        ) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::scale_y_continuous(trans = scales::pseudo_log_trans())
+
+    ggplot2::ggsave(
+        str_path("{outdir}/bayes_risk.png"),
+        bayes_risk_plot,
+        width = 17, height = 8, dpi = 600
+    )
+
+    bayes_risk_plot_skeptical <- bayes_risk_results %>%
+        dplyr::filter(prior == "skeptical") %>%
+        ggplot2::ggplot(
+            ggplot2::aes(
+                x = threshold, y = bayes_risk,
+                fill = implementation_decision_rule
+            )
+        ) +
+        ggplot2::geom_col(position = ggplot2::position_dodge()) +
+        ggplot2::facet_grid(risk_aversion_parameter ~ sample_size, scales = "free") +
+        ggplot2::scale_fill_brewer(palette = "Dark2") +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Bayes Risk (unscaled)",
+            fill = "Implementation\ndecision rule"
+        ) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::scale_y_continuous(trans = scales::pseudo_log_trans())
+
+    ggplot2::ggsave(
+        str_path("{outdir}/bayes_risk_skeptical.png"),
+        bayes_risk_plot_skeptical,
+        width = 17, height = 8, dpi = 600
+    )
+
+    bayes_risk_plot_optimistic <- bayes_risk_results %>%
+        dplyr::filter(prior == "optimistic") %>%
+        ggplot2::ggplot(
+            ggplot2::aes(
+                x = threshold, y = bayes_risk,
+                fill = implementation_decision_rule
+            )
+        ) +
+        ggplot2::geom_col(position = ggplot2::position_dodge()) +
+        ggplot2::facet_grid(risk_aversion_parameter ~ sample_size, scales = "free") +
+        ggplot2::scale_fill_brewer(palette = "Dark2") +
+        ggplot2::labs(
+            x = "Decision threshold",
+            y = "Bayes Risk (unscaled)",
+            fill = "Implementation\ndecision rule"
+        ) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::scale_y_continuous(trans = scales::pseudo_log_trans())
+
+    ggplot2::ggsave(
+        str_path("{outdir}/bayes_risk_optimistic.png"),
+        bayes_risk_plot_optimistic,
+        width = 17, height = 8, dpi = 600
     )
 }

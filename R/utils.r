@@ -1642,72 +1642,32 @@ run_sample_size_simulation_single_setting <- function(n_sim, n) {
   return(dplyr::bind_rows(setting_results))
 }
 
-get_sample_size_dca <- function(n) {
-  # TODO: double check these values
+get_sample_size_dca <- function(n, include_true_p = FALSE) {
+  # Population prevalence: 0.2
   ## baseline model
-  ### calib int -0.01
-  ### calib slope 0.99
-  ### concordance 0.69
+  ### avg pred 0.22
+  ### calib o/e 0.92
+  ### calib slope 0.8
+  ### concordance 0.62
   ## new model
-  ### calib int -0.15
+  ### avg pred 0.22
+  ### calib o/e 0.93
   ### calib slope 0.86
-  ### concordance 0.74
+  ### concordance 0.77
   x1 <- rnorm(n)
   x2 <- rnorm(n)
   x3 <- rnorm(n)
   x4 <- rnorm(n)
-  true_lp <- -2.5 + 0.5 * x1 + -1.5 * x2 + 1.5 * x3 + -1.7 * x4
-  lp0 <- -4.5 + 0.38 * x1 - 2.2 * x2 + -2.2 * x4
-  lp1 <- -1.5 + 0.3 * x1 + 0.9 * x3
+  true_lp <- -3 + 0.1 * x1 + 1.4 * x2 + -1.75 * x3 + 2 * x4
+  lp0 <<- -1.6 + 0.12 * x1 + 1.55 * x2
+  lp1 <<- -1.7 + 0.075 * x1 + -1.1 * x3
   y <- rbinom(n, size = 1, prob = plogis(true_lp))
-  d <- data.frame(outcomes = y, phat0 = plogis(lp0), phat1 = plogis(lp1), true_p = plogis(true_lp))
+  d <- data.frame(outcomes = y, phat0 = plogis(lp0), phat1 = plogis(lp1))
+  if (isTRUE(include_true_p)) {
+    d$true_p <- plogis(true_lp)
+  }
   f <- bayesDCA::dca(d, thresholds = seq(0, 0.3, 0.01))
   return(f)
-}
-
-run_sample_size_simulation_single_run <- function(n) {
-  # simulate data
-  f <- get_sample_size_dca(n = n)
-  # compute run results for probabilities
-  puseful <- bayesDCA::plot_superiority_prob(f, type = "useful")$data %>%
-    dplyr::mutate(comparison = paste0(decision_strategy, " vs max(treat all, treat none)")) %>%
-    dplyr::select(threshold, comparison, prob)
-  phat1_vs_phat0 <- bayesDCA::plot_superiority_prob(f, type = "pairwise", strategies = c("phat1", "phat0"))$data %>%
-    dplyr::mutate(comparison = paste0("phat1 vs phat0")) %>%
-    dplyr::select(threshold, comparison, prob)
-  true_p_vs_phat1 <- bayesDCA::plot_superiority_prob(f, type = "pairwise", strategies = c("true_p", "phat1"))$data %>%
-    dplyr::mutate(comparison = paste0("true p vs phat1")) %>%
-    dplyr::select(threshold, comparison, prob)
-  true_p_vs_phat0 <- bayesDCA::plot_superiority_prob(f, type = "pairwise", strategies = c("true_p", "phat0"))$data %>%
-    dplyr::mutate(comparison = paste0("true p vs phat0")) %>%
-    dplyr::select(threshold, comparison, prob)
-  # compute run results for delta estimates
-  delta_useful <- bayesDCA::plot_delta(f, type = "useful")$data %>%
-    dplyr::mutate(comparison = paste0(decision_strategy, " vs max(treat all, treat none)")) %>%
-    dplyr::select(threshold, comparison, delta := estimate)
-  delta_phat1_vs_phat0 <- bayesDCA::plot_delta(f, type = "pairwise", strategies = c("phat1", "phat0"))$data %>%
-    dplyr::mutate(comparison = paste0("phat1 vs phat0")) %>%
-    dplyr::select(threshold, comparison, delta := estimate)
-  delta_true_p_vs_phat1 <- bayesDCA::plot_delta(f, type = "pairwise", strategies = c("true_p", "phat1"))$data %>%
-    dplyr::mutate(comparison = paste0("true p vs phat1")) %>%
-    dplyr::select(threshold, comparison, delta := estimate)
-  delta_true_p_vs_phat0 <- bayesDCA::plot_delta(f, type = "pairwise", strategies = c("true_p", "phat0"))$data %>%
-    dplyr::mutate(comparison = paste0("true p vs phat0")) %>%
-    dplyr::select(threshold, comparison, delta := estimate)
-
-  # combine results
-  results_prob <- dplyr::bind_rows(
-    puseful, phat1_vs_phat0, true_p_vs_phat1, true_p_vs_phat0
-  )
-  results_delta <- dplyr::bind_rows(
-    delta_useful, delta_phat1_vs_phat0, delta_true_p_vs_phat1, delta_true_p_vs_phat0
-  )
-  run_results <- dplyr::inner_join(
-    results_prob, results_delta,
-    by = c("threshold", "comparison")
-  ) %>%
-    dplyr::mutate(sample_size = n)
-  return(run_results)
 }
 
 run_expected_regret_simulation_single_run <- function(n, return_dca = FALSE) {
@@ -1716,28 +1676,25 @@ run_expected_regret_simulation_single_run <- function(n, return_dca = FALSE) {
   # scenario 1: phat0 is default, needs to decide whether to implement phat1
 
   # compute run results for probabilities
-  puseful <- bayesDCA::plot_superiority_prob(f, type = "useful")$data %>%
-    dplyr::filter(decision_strategy %in% c("phat0", "phat1")) %>%
-    dplyr::mutate(comparison = paste0(decision_strategy, " vs max(treat all, treat none)")) %>%
-    dplyr::select(threshold, comparison, prob)
-  phat1_vs_phat0 <- bayesDCA::plot_superiority_prob(f, type = "pairwise", strategies = c("phat1", "phat0"))$data %>%
-    dplyr::mutate(comparison = paste0("phat1 vs phat0")) %>%
-    dplyr::select(threshold, comparison, prob)
+  probs <- bayesDCA:::get_superiority_prob_plot_data_binary(f) %>%
+    dplyr::select(threshold, decision_strategy, prob)
   # compute run results for deltas
-  delta_useful <- bayesDCA::plot_delta(f, type = "useful")$data %>%
-    dplyr::filter(decision_strategy %in% c("phat0", "phat1")) %>%
-    dplyr::mutate(comparison = paste0(decision_strategy, " vs max(treat all, treat none)")) %>%
-    dplyr::select(threshold, comparison, delta := estimate)
-  delta_phat1_vs_phat0 <- bayesDCA::plot_delta(f, type = "pairwise", strategies = c("phat1", "phat0"))$data %>%
-    dplyr::mutate(comparison = paste0("phat1 vs phat0")) %>%
-    dplyr::select(threshold, comparison, delta := estimate)
+  deltas <- bayesDCA:::get_delta_plot_data_binary(f) %>%
+    dplyr::select(threshold, decision_strategy, delta := estimate)
+  # nb
+  nb <- f$summary$net_benefit %>%
+    dplyr::select(threshold, decision_strategy := decision_strategy_name, nb := estimate)
 
   # combine results
   run_results <- dplyr::inner_join(
-    dplyr::bind_rows(puseful, phat1_vs_phat0),
-    dplyr::bind_rows(delta_useful, delta_phat1_vs_phat0),
-    by = c("threshold", "comparison")
+    probs,
+    deltas,
+    by = c("threshold", "decision_strategy")
   ) %>%
+    dplyr::inner_join(
+      nb,
+      by = c("threshold", "decision_strategy")
+    ) %>%
     dplyr::mutate(sample_size = n)
 
   if (isTRUE(return_dca)) {
