@@ -120,13 +120,6 @@ list(
     )
   ),
   tar_target(
-    name = sample_size_simulation,
-    command = run_sample_size_simulation(
-      n_sim = 300, overwrite = FALSE,
-      outdir = str_path("output/sample-size-simulation")
-    )
-  ),
-  tar_target(
     name = bayes_risk_simulation,
     command = run_bayes_risk_simulation(
       n_sim = 1000, overwrite = FALSE,
