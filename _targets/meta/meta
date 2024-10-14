@@ -1,8 +1,9 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 .get_cutpoints|function|9c2dbcbdf76e1f71|||||||||||||||
-.Random.seed|object|b4fd38c3d8134821|||||||||||||||
+.Random.seed|object|ebbfc7c40e0dff96|||||||||||||||
 .seed|object|45914e388762c03b|||||||||||||||
 adnex_case_study|stem|66251d273cd7b69f|8da817af14dd58c0|1b06d32650e6a3ac|505499449||t19773.2140472761s|ecedd8da0f857243|16271075|rds|local|vector|||1.175||
+bayes_risk_simulation|stem|3f021b41d425857a|e65abb4d5b85f94f|af682adb2877144f|885925754||t20010.7280571054s|e42ed4625f93f45f|114|rds|local|vector|||41.715||
 compare_bdca_vs_dcurves|function|2e99e4d172707d83|||||||||||||||
 compare_bdca_vs_rmda|function|3e6faf88c0bfbbe7|||||||||||||||
 compute_nb|function|c33e338abcc2f4ca|||||||||||||||
@@ -45,6 +46,7 @@ results_03_subsection|stem|6b04a788453f4b2a|ad026428a1cb6d7c|191fd6178abf5f62|18
 results_03_subsection_plots|stem|6c8404356e6bbef6|d6aa421274b4ce45|fca7ba3080c20759|965455883||t19389.0092355607s|69434b851f49d9c1|84931174|rds|local|vector|||8.559|1m22mUsing the size aesthietic with geom_segment was deprecated in ggplot2 3.4.0.36mℹ39m Please use the linewidth aesthetic instead.. is.na applied to nonlist or vector of type expression|
 results_04_subsection|stem|942604cec77f2722|f3fbbc2e9f6bbd79|a23fcf84054de661|929926898||t19405.2052127611s|d9679fa01c5e520e|3071415|rds|local|vector|||1.137||
 results_04_subsection_plots|stem|589110dfe2aad341|756e0fdf4b0adfaa|4dd5694a1c4226da|-14585783||t19405.2095411079s|77c7317a13f0bc89|16633121|rds|local|vector|||14.268||
+run_bayes_risk_simulation|function|c47514c8f4960a43|||||||||||||||
 run_bayes_vs_frequentist|function|89793868063be714|||||||||||||||
 run_case_study|function|30431fafac5daf71|||||||||||||||
 run_dca_simulation|function|bb17b3b385d1ce06|||||||||||||||

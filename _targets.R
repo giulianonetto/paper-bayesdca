@@ -127,10 +127,10 @@ list(
     )
   ),
   tar_target(
-    name = expected_regret_simulation,
-    command = run_expected_regret_simulation(
+    name = bayes_risk_simulation,
+    command = run_bayes_risk_simulation(
       n_sim = 1000, overwrite = FALSE,
-      outdir = str_path("output/expected-regret-simulation")
+      outdir = str_path("output/bayes-risk-simulation")
     )
   )
 )

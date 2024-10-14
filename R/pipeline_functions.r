@@ -1256,17 +1256,17 @@ run_evpi_simulation <- function(
 }
 
 
-run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
-    simulation_results_file <- str_path("{outdir}/simulation_results_expected_regret.tsv")
+run_bayes_risk_simulation <- function(n_sim, outdir, overwrite = FALSE) {
+    simulation_results_file <- str_path("{outdir}/simulation_results_bayes_risk.tsv")
     if (file.exists(simulation_results_file) && isFALSE(overwrite)) {
-        msg <- cli::col_br_red("Simulation results (expected regret) exist and will not be overwritten")
+        msg <- cli::col_br_red("Simulation results (bayes risk) exist and will not be overwritten")
         message(msg)
-        expected_regret_simulation_results <- readr::read_tsv(
+        bayes_risk_simulation_results <- readr::read_tsv(
             simulation_results_file,
             show_col_types = FALSE
         )
     } else {
-        msg <- cli::col_br_red(str_glue("Starting expected regret simulation with n_sim={n_sim}"))
+        msg <- cli::col_br_red(str_glue("Starting bayes risk simulation with n_sim={n_sim}"))
         message(msg)
         # ensure outdir exists
         dir.create(
@@ -1283,22 +1283,22 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
                 paste0(sample_size_list, collapse = ", ")
             )
         ))
-        expected_regret_simulation_results <- vector("list", length(sample_size_list))
+        bayes_risk_simulation_results <- vector("list", length(sample_size_list))
         # run simulation for each sample size
         for (i in seq_along(sample_size_list)) {
             msg <- cli::col_br_magenta(
-                paste0("Running expected regret simulation with sample_size=", sample_size_list[i])
+                paste0("Running bayes risk simulation with sample_size=", sample_size_list[i])
             )
             message(msg)
-            expected_regret_simulation_results[[i]] <- purrr::map_df(
+            bayes_risk_simulation_results[[i]] <- purrr::map_df(
                 seq_len(n_sim),
-                ~ run_expected_regret_simulation_single_run(n = sample_size_list[[i]]),
+                ~ run_bayes_risk_simulation_single_run(n = sample_size_list[[i]]),
                 .id = "run_id"
             )
         }
         # combine and save results
-        expected_regret_simulation_results <- dplyr::bind_rows(
-            expected_regret_simulation_results,
+        bayes_risk_simulation_results <- dplyr::bind_rows(
+            bayes_risk_simulation_results,
             .id = "setting_id"
         ) %>%
             dplyr::select(
@@ -1307,7 +1307,7 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
                 prob, delta
             )
         readr::write_tsv(
-            expected_regret_simulation_results,
+            bayes_risk_simulation_results,
             simulation_results_file
         )
     }
@@ -1318,7 +1318,8 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
     dca_ground_truth <- get_sample_size_dca(n = 2e6)
     dca_ground_truth_plot <- plot(
         dca_ground_truth,
-        strategies = c("phat0", "phat1")
+        strategies = c("phat0", "phat1"),
+        labels = c("phat0" = "model A", "phat1" = "model B")
     ) +
         ggplot2::scale_x_continuous(
             breaks = seq(0, 0.3, by = 0.05),
@@ -1342,8 +1343,37 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
         dpi = 600
     )
 
+    dca_ground_truth_delta_plot <- bayesDCA:::plot_delta(
+        dca_ground_truth,
+        type = "pairwise",
+        strategies = c("phat1", "phat0")
+    ) +
+        ggplot2::scale_x_continuous(
+            breaks = seq(0, 0.3, by = 0.05),
+            labels = scales::label_percent(1)
+        ) +
+        ggplot2::theme_bw(base_size = 18) +
+        ggplot2::theme(
+            legend.position = "inside",
+            legend.position.inside = c(0.85, 0.8),
+            legend.text = ggplot2::element_text(size = 11)
+        ) +
+        ggplot2::labs(
+            subtitle = "True delta NB (Model B vs model A)"
+        ) +
+        ggplot2::coord_cartesian(ylim = c(-0.05, 0.05)) +
+        ggplot2::scale_y_continuous(breaks = seq(-0.05, 0.05, by = 0.025))
+
+    ggplot2::ggsave(
+        str_path("{outdir}/ground_truth_delta_nb.png"),
+        dca_ground_truth_delta_plot,
+        width = 9,
+        height = 5.5,
+        dpi = 600
+    )
+
     # summarise results
-    results_summary <- expected_regret_simulation_results %>%
+    results_summary <- bayes_risk_simulation_results %>%
         dplyr::group_by(
             threshold, decision_strategy, sample_size, setting_id
         ) %>%
@@ -1498,9 +1528,9 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             values_from = unscaled_risk
         ) %>%
         dplyr::mutate(
-            bayes_risk_uniform_0.5 = Implement * 0.5 + `Not implement\n(0.5)` * 0.5,
-            bayes_risk_uniform_0.8 = Implement * 0.5 + `Not implement\n(0.8)` * 0.5,
-            bayes_risk_uniform_0.9 = Implement * 0.5 + `Not implement\n(0.9)` * 0.5,
+            bayes_risk_uniform_0.5 = Implement + `Not implement\n(0.5)`,
+            bayes_risk_uniform_0.8 = Implement + `Not implement\n(0.8)`,
+            bayes_risk_uniform_0.9 = Implement + `Not implement\n(0.9)`,
             bayes_risk_skeptical_0.5 = Implement * 0.25 + `Not implement\n(0.5)` * 0.75,
             bayes_risk_skeptical_0.8 = Implement * 0.25 + `Not implement\n(0.8)` * 0.75,
             bayes_risk_skeptical_0.9 = Implement * 0.25 + `Not implement\n(0.9)` * 0.75,
@@ -1535,11 +1565,23 @@ run_expected_regret_simulation <- function(n_sim, outdir, overwrite = FALSE) {
             )
         ) +
         ggplot2::geom_col(position = ggplot2::position_dodge()) +
-        ggplot2::facet_grid(risk_aversion_parameter ~ sample_size, scales = "free") +
+        ggplot2::facet_grid(
+            risk_aversion_parameter ~ sample_size,
+            scales = "free",
+            labeller = ggplot2::labeller(
+                risk_aversion_parameter = function(x) {
+                    dplyr::if_else(
+                        x == 0.5,
+                        "Risk-neutral\n\u03b3 = 0.5",
+                        paste0("Risk-averse\n\u03b3 = ", x)
+                    )
+                }
+            )
+        ) +
         ggplot2::scale_fill_brewer(palette = "Dark2") +
         ggplot2::labs(
             x = "Decision threshold",
-            y = "Bayes Risk (unscaled)",
+            y = "Bayes Risk",
             fill = "Implementation\ndecision rule"
         ) +
         ggplot2::theme_bw(base_size = 18) +
